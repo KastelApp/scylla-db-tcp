@@ -24,17 +24,7 @@ Bun.connect({
             setTimeout(() => {
                 const cat = {
                     "command": "test",
-                    "data": {
-                        "contactPoints": [
-                            "localhost:9042"
-                        ],
-                        "localDataCenter": "datacenter1",
-                        "credentials": {
-                            "username": "cassandra",
-                            "password": "cassandra"
-                        },
-                        "keyspace": "test"
-                    }    
+                    "data": {}
                 }
 
                 socket.write(Buffer.from(JSON.stringify(cat)));

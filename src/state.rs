@@ -1,9 +1,4 @@
-// ? This file contains the state of the client.
-// ? we have a simple struct which houses if the user is connected to scylla or not.
-// ? The keyspace they want to use, and then the scylla session.
-// ? we then store this in a store struct which is a hashmap of the client id and the state.
-
-use std::{collections::HashMap, sync::{Arc}};
+use std::{collections::HashMap, sync::Arc};
 use scylla::Session;
 use tokio::sync::Mutex;
 

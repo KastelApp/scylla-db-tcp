@@ -1,8 +1,8 @@
-use std::{borrow::Borrow, sync::Arc};
+use std::sync::Arc;
 
 use tokio::{
     io::AsyncWriteExt,
-    net::{tcp::OwnedWriteHalf, TcpStream},
+    net::tcp::OwnedWriteHalf,
     sync::Mutex,
 };
 
