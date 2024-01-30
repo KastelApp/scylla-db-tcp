@@ -1,5 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
 use scylla::Session;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Debug)]

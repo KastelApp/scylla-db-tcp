@@ -1,60 +1,41 @@
-// TODO: return responses in json format
-
-use std::{collections::HashMap, sync::Arc};
-
-use scylla::serialize::value::SerializeCql;
+use indexmap::IndexMap;
+use std::sync::Arc;
 use tokio::{io::AsyncWriteExt, net::tcp::OwnedWriteHalf, sync::Mutex};
 
 use crate::{
+    calculate_hash::calculate_hash,
     state,
-    structs::{self, Command},
+    structs::common::{Command, CommandData, QueryResult, Value},
     util::{parse_cql_value::parse_cql_value, queries::select_query},
 };
 
-impl SerializeCql for structs::Value {
-    fn serialize<'b>(
-        &self,
-        typ: &scylla::frame::response::result::ColumnType,
-        writer: scylla::serialize::CellWriter<'b>,
-    ) -> Result<
-        scylla::serialize::writers::WrittenCellProof<'b>,
-        scylla::serialize::SerializationError,
-    > {
-        match self {
-            &structs::Value::Str(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
-            &structs::Value::Num(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
-            &structs::Value::Int(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
-            &structs::Value::Bool(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
-            &structs::Value::Null => {
-                scylla::serialize::value::SerializeCql::serialize(&None::<String>, typ, writer)
-            }
-            &structs::Value::Array(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
-        }
-    }
-}
-
 pub async fn select(
     write: Arc<Mutex<OwnedWriteHalf>>,
-    command: structs::CommandData,
+    command: &CommandData,
     user: Arc<Mutex<state::ClientState>>,
-    keyspace: Option<String>,
-    table: Option<String>,
+    keyspace: &Option<String>,
+    table: &Option<String>,
+    raw_command: &Command,
 ) {
-    let mut write = write.lock().await;
-    let uu = user.lock().await;
+    let user = user.lock().await;
 
-    if !uu.connected {
-        let response = "Not connected to scylla";
+    if !user.connected {
+        let error = Command {
+            command: "error".to_string(),
+            data: CommandData::SelectResponse(QueryResult {
+                error: Some("Not connected to Scylla".to_string()),
+                result: Vec::new(),
+            }),
+            keyspace: None,
+            table: None,
+            hash: "".to_string(),
+            length: "".len(),
+            nonce: None,
+        };
+
+        let response = serde_json::to_string(&error).unwrap();
+
+        let mut write = write.lock().await;
 
         write.write_all(response.as_bytes()).await.unwrap();
 
@@ -64,14 +45,18 @@ pub async fn select(
     }
 
     match command {
-        structs::CommandData::Select(select_data) => {
+        CommandData::Select(select_data) => {
+            let table = table.as_ref().unwrap();
+            let keyspace = keyspace.as_ref();
+            let user_keyspace = &user.keyspace;
+
             let query = select_query(
-                keyspace.to_owned().unwrap(),
-                table.to_owned().unwrap(),
+                &keyspace.to_owned().unwrap_or(user_keyspace),
+                table,
                 select_data,
             );
 
-            let session = uu.session.as_ref().unwrap().lock().await;
+            let session = user.session.as_ref().unwrap().lock().await;
 
             match session.query(query.query, query.values).await {
                 Ok(query_result) => {
@@ -79,7 +64,7 @@ pub async fn select(
 
                     let mut indexes = Vec::new();
 
-                    let query_map = &query_result.col_specs.clone();
+                    let query_map = &query_result.col_specs;
 
                     for value in query_map {
                         let (value_idx, _) =
@@ -89,11 +74,11 @@ pub async fn select(
                     }
 
                     for row in query_result.rows.unwrap() {
-                        let mut row_vec: HashMap<String, structs::Value> = HashMap::new();
+                        let mut row_vec: IndexMap<String, Value> = IndexMap::new();
 
-                        for index in indexes.clone() {
-                            let column = row.columns[index].as_ref();
-                            let name = query_map[index].name.as_str().to_string();
+                        for index in &indexes {
+                            let column = row.columns[index.to_owned()].as_ref();
+                            let name = query_map[index.to_owned()].name.as_str().to_string();
 
                             let value = parse_cql_value(column);
 
@@ -103,40 +88,66 @@ pub async fn select(
                         result.push(row_vec);
                     }
 
-                    let query_result = Command {
+                    let mut query_result = Command {
+                        hash: "".to_string(),
+                        length: 0,
                         command: "select".to_string(),
                         keyspace: None,
                         table: None,
-                        data: structs::CommandData::SelectResponse(structs::QueryResult {
+                        data: CommandData::SelectResponse(QueryResult {
                             result,
                             error: None,
                         }),
+                        nonce: raw_command.nonce.clone(), // todo: do not clone
                     };
+
+                    let string_query_data = serde_json::to_string(&query_result.data).unwrap();
+
+                    query_result.length = string_query_data.len() + query_result.command.len();
+
+                    query_result.hash = calculate_hash(
+                        query_result.command.to_string()
+                            + &query_result.length.to_string()
+                            + &string_query_data,
+                    );
 
                     let response = serde_json::to_string(&query_result).unwrap();
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    write
+                        .lock()
+                        .await
+                        .write_all(response.as_bytes())
+                        .await
+                        .unwrap();
                 }
                 Err(error) => {
                     let query_result = Command {
+                        hash: "".to_string(),
+                        length: 0,
                         command: "select".to_string(),
                         keyspace: None,
                         table: None,
-                        data: structs::CommandData::SelectResponse(structs::QueryResult {
+                        data: CommandData::SelectResponse(QueryResult {
                             result: Vec::new(),
                             error: Some(error.to_string()),
                         }),
+                        nonce: raw_command.nonce.clone(),
                     };
 
                     let response = serde_json::to_string(&query_result).unwrap();
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    write
+                        .lock()
+                        .await
+                        .write_all(response.as_bytes())
+                        .await
+                        .unwrap();
                 }
             }
         }
 
         _ => {
-            println!("Unknown command data: {:?}", command);
+            println!("[Warn] Unknown command data: {:?}", command);
         }
     }
 }

@@ -5,6 +5,10 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
+use crate::calculate_hash::calculate_hash;
+use crate::structs::common::Command;
+
+mod calculate_hash;
 mod commands;
 mod state;
 mod structs;
@@ -24,7 +28,6 @@ async fn main() {
     while let Ok((stream, _)) = listener.accept().await {
         // let stream = Arc::new(Mutex::new(stream));
         let (read, write) = stream.into_split();
-        let users = users.clone();
 
         let read = Arc::new(Mutex::new(read));
         let write = Arc::new(Mutex::new(write));
@@ -42,45 +45,82 @@ async fn handle_connection(
     write: Arc<Mutex<OwnedWriteHalf>>,
     users: Arc<Mutex<state::Store>>,
 ) {
-    let mut buffer = [0; 1024];
     let user = Arc::new(Mutex::new(state::ClientState::new(false, "test", None)));
     let rnd_id = rand::random::<u32>().to_string();
     let ip = read.lock().await.peer_addr().unwrap();
 
     println!("[Info] New connection from: {} with id: {}", ip, rnd_id);
 
-    users
-        .lock()
-        .await
-        .clients
-        .insert(rnd_id.clone(), Arc::clone(&user));
+    users.lock().await.clients.insert(rnd_id, Arc::clone(&user));
 
-    while let Ok(n) = read.lock().await.read(&mut buffer).await {
+    loop {
+        let mut buffer = [0; 1024];
+
+        let n = read.lock().await.read(&mut buffer).await.unwrap();
+
         if n == 0 {
             break;
         }
 
         let received_data = &buffer[..n];
+
         let json_str = String::from_utf8_lossy(received_data);
 
-        match serde_json::from_str::<structs::Command>(&json_str) {
-            Ok(command) => {
-                handle_command(Arc::clone(&write), command, Arc::clone(&user)).await;
+        // Split the received data by the newline character
+        let commands: Vec<&str> = json_str.split('\n').collect();
+
+        for command in commands {
+            if command.is_empty() {
+                continue;
             }
-            Err(e) => {
-                let response = format!("Error: {}", e);
 
-                println!(
-                    "[Warn] User with the id: {} sent an invalid command: {}",
-                    rnd_id, json_str
-                );
+            // println!("[Info] Received command: {}", command);
 
-                write
-                    .lock()
-                    .await
-                    .write_all(response.as_bytes())
-                    .await
-                    .unwrap();
+            // Process each command separately
+            match serde_json::from_str::<Command>(command) {
+                Ok(command) => {
+                    let hash = calculate_hash(
+                        command.command.to_string()
+                            + &command.length.to_string()
+                            + &serde_json::to_string(&command.data).unwrap(),
+                    );
+
+                    if hash != command.hash {
+                        println!("[Warn] Hashes do not match, dropping command");
+
+                        println!("Received hash: {}", command.hash);
+                        println!("Calculated hash: {}", hash);
+
+                        println!("Command: {}", command.command);
+                        println!("Length: {}", command.length);
+                        println!("Data: {}", serde_json::to_string(&command.data).unwrap());
+
+                        write
+                            .lock()
+                            .await
+                            .write_all("Hashes do not match, dropping command".as_bytes())
+                            .await
+                            .unwrap();
+
+                        continue;
+                    }
+
+                    let feature = handle_command(Arc::clone(&write), command, Arc::clone(&user));
+
+                    tokio::spawn(feature);
+                }
+                Err(e) => {
+                    let response = format!("Error: {}", e);
+
+                    println!("[Warn] A User sent an invalid command: {}", command);
+
+                    write
+                        .lock()
+                        .await
+                        .write_all(response.as_bytes())
+                        .await
+                        .unwrap();
+                }
             }
         }
     }
@@ -88,7 +128,7 @@ async fn handle_connection(
 
 async fn handle_command(
     write: Arc<Mutex<OwnedWriteHalf>>,
-    command: structs::Command,
+    command: Command,
     user: Arc<Mutex<state::ClientState>>,
 ) {
     match command.command.as_str() {
@@ -98,14 +138,25 @@ async fn handle_command(
         "select" => {
             commands::select::select(
                 Arc::clone(&write),
-                command.data,
+                &command.data,
                 user,
-                command.keyspace,
-                command.table,
+                &command.keyspace,
+                &command.table,
+                &command,
             )
             .await;
         }
-        "insert" => {}
+        "insert" => {
+            commands::insert::insert(
+                Arc::clone(&write),
+                &command.data,
+                user,
+                &command.keyspace,
+                &command.table,
+                &command,
+            )
+            .await;
+        }
         "test" => {
             if !user.lock().await.connected {
                 let response = "Not connected to scylla";

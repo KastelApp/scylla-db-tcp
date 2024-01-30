@@ -68,7 +68,7 @@ Before we get started, this is a generalized payload, of an error the server may
     "table": null, // always null
     "keyspace": null, // always null
     "data": {
-        "result": null,
+        "result": [],
         "error": "You are not authorized to do this."
     }
 }
