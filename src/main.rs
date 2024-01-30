@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 mod commands;
 mod state;
 mod structs;
+mod util;
 
 #[tokio::main]
 async fn main() {
@@ -16,7 +17,7 @@ async fn main() {
         .await
         .expect("Failed to bind to address");
 
-    println!("Server listening on: {}", addr);
+    println!("[Info] Server listening on: {}", addr);
 
     let users = Arc::new(Mutex::new(state::Store::new()));
 
@@ -42,10 +43,11 @@ async fn handle_connection(
     users: Arc<Mutex<state::Store>>,
 ) {
     let mut buffer = [0; 1024];
-
     let user = Arc::new(Mutex::new(state::ClientState::new(false, "test", None)));
-
     let rnd_id = rand::random::<u32>().to_string();
+    let ip = read.lock().await.peer_addr().unwrap();
+
+    println!("[Info] New connection from: {} with id: {}", ip, rnd_id);
 
     users
         .lock()
@@ -60,9 +62,27 @@ async fn handle_connection(
 
         let received_data = &buffer[..n];
         let json_str = String::from_utf8_lossy(received_data);
-        let command: structs::Command = serde_json::from_str(&json_str).unwrap();
 
-        handle_command(Arc::clone(&write), command, Arc::clone(&user)).await;
+        match serde_json::from_str::<structs::Command>(&json_str) {
+            Ok(command) => {
+                handle_command(Arc::clone(&write), command, Arc::clone(&user)).await;
+            }
+            Err(e) => {
+                let response = format!("Error: {}", e);
+
+                println!(
+                    "[Warn] User with the id: {} sent an invalid command: {}",
+                    rnd_id, json_str
+                );
+
+                write
+                    .lock()
+                    .await
+                    .write_all(response.as_bytes())
+                    .await
+                    .unwrap();
+            }
+        }
     }
 }
 
@@ -76,11 +96,16 @@ async fn handle_command(
             commands::connect::connect(Arc::clone(&write), command.data, user).await;
         }
         "select" => {
-            // commands::select::select(command.data, user).await;
+            commands::select::select(
+                Arc::clone(&write),
+                command.data,
+                user,
+                command.keyspace,
+                command.table,
+            )
+            .await;
         }
-        "insert" => {
-            // commands::insert::insert(command.data, user).await;
-        }
+        "insert" => {}
         "test" => {
             if !user.lock().await.connected {
                 let response = "Not connected to scylla";

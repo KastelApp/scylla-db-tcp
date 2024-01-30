@@ -1,49 +1,85 @@
 # Scylla-DB TCP Server
 
-This is a simple TCP server which supports commands to do and receive data from Scylla-DB.
+This is a simple TCP server built with Rust and Tokio, which supports commands to interact with Scylla-DB. It's designed to be used with the NPM package `@kastelapp/scylla`, but you can use it independently if you wish.
 
-Note: This is for the NPM package `@kastelapp/scylla`, you can use this on your own if you wish.
+## Features
 
-An example command is as follows:
+- Built with Rust and Tokio for high performance and reliability (maybe I suck at rust ;3)
+- Supports a variety of commands including `select`, `insert`, `update`, `delete`, `connect`, and `raw`.
+- Can be used with the NPM package `@kastelapp/scylla`, or independently.
 
-```json
+## Installation
+
+To install the server, checkout github releases. If you wish to build it yourself, you can do so by cloning the repository and running `cargo build --release`.
+
+## Usage
+
+After building the server, you can start it by running the resulting binary in your terminal. The server will start listening on port 8080 by default (adding --port will change it).
+
+You can then send commands to the server using a TCP client. Here's an example of how to send a `select` command:
+
+```js
 {
-    "command": "select", // select, insert, update, delete, connect, raw
-    "table": "test", // the table to use
-    "keyspace": "test", // the keyspace to use (defaults to the initial keyspace set in the connect command)
-    "data": {
-        "where": {
-            "id": "1"
-        },
-        "columns": [
-            "id",
-            "name"
-        ],
-        "limit": 1
-    }
+  "command": "select",
+  "table": "test",
+  "keyspace": "test",
+  "data": {
+    "where": { "id": "1" },
+    "columns": ["id", "name"],
+    "limit": 1
+  }
 }
 ```
 
-The server will respond with a JSON object containing the result of the command:
+The server then will respond with a resonse like this:
 
-```json
+```js
 {
+  "command": "select",
+  "table": null,
+  "keyspace": null,
+  "data": {
     "result": [
-        {
-            "id": "1",
-            "name": "test"
-        }
-    ]
+      { "id": "1", "name": "test" }
+    ],
+    "error": null
+  }
 }
 ```
 
 ## Commands
 
-## Connect
+The server supports the following commands:
 
-The connect command is used to connect to a Scylla-DB instance. It is required to be the first command sent to the server.
+- `connect`: Connect to a Scylla-DB instance.
+- `select`: Select data from a table.
+- `insert`: Insert data into a table.
+- `update`: Update data in a table.
+- `delete`: Delete data from a table.
+- `raw`: Send a raw CQL query to the Scylla-DB instance (not recommended).
 
-```json
+For more information on how to use these commands, see the section below.
+
+Before we get started, this is a generalized payload, of an error the server may send if you are not authorized to do something:
+
+```js
+{
+    "command": "error", // Not a real command, just used for errors
+    "table": null, // always null
+    "keyspace": null, // always null
+    "data": {
+        "result": null,
+        "error": "You are not authorized to do this."
+    }
+}
+```
+
+<details>
+<summary><strong>Connect</strong></summary>
+
+The `connect` command is used to connect to a Scylla-DB instance. It is required to be the first command sent to the server.
+
+```js
 {
     "command": "connect",
     "data": {
@@ -61,63 +97,66 @@ The connect command is used to connect to a Scylla-DB instance. It is required t
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "connect",
     "data": {
-        "success": true, // if the connection was successful
-        "error": null // if the connection was not successful, this will contain the error (i.e. "Failed to connect to any host")
+        "success": true,
+        "error": null
     }
 }
 ```
 
-## Select
+</details>
 
-The select command is used to select data from a table.
+<details>
+<summary><strong>Select</strong></summary>
 
-```json
-{ // command example: SELECT id, name FROM test WHERE id = '1' LIMIT 1
+The `select` command is used to select data from a table.
+
+```js
+{
     "command": "select",
     "table": "test",
-    "keyspace": "test", // if you don't provide a keyspace, we will use the keyspace provided in the connect command
+    "keyspace": "test",
     "data": {
-        "where": { // extra elements will have an AND operator for example: { "id": "1", "name": "test" } will be `WHERE id = '1' AND name = 'test'`
-            "id": "1"
-        },
-        "columns": [ // the columns to select, if empty it will select all columns (not recommended) i.e SELECT id, name FROM test
-            "id",
-            "name"
-        ],
+        "where": { "id": "1" },
+        "columns": ["id", "name"],
         "limit": 1
     }
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "select",
+    "table": null, // always null
+    "keyspace": null, // always null
     "data": {
-        "result": [ // the result of the query
+        "result": [
             {
                 "id": "1",
                 "name": "test"
             }
         ],
-        "error": null // if the query was not successful, this will contain the error (i.e. "No keyspace has been specified")
+        "error": null
     }
 }
 ```
 
-## Insert
+</details>
 
-The insert command is used to insert data into a table.
+<details>
+<summary><strong>Insert</strong></summary>
 
-```json
-{ // command example: INSERT INTO test (id, name) VALUES ('1', 'test')
+The `insert` command is used to insert data into a table.
+
+```js
+{
     "command": "insert",
     "table": "test",
     "keyspace": "test",
@@ -130,103 +169,136 @@ The insert command is used to insert data into a table.
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "insert",
     "data": {
-        "success": true, // if the insert was successful
-        "error": null // if the insert was not successful, this will contain the error (i.e. "No keyspace has been specified")
+        "success": true,
+        "error": null
     }
 }
 ```
 
-## Update
+</details>
 
-The update command is used to update data in a table.
+<details>
+<summary><strong>Update</strong></summary>
 
-```json
-{ // command example: UPDATE test SET name = 'test2' WHERE id = '1'
+The `update` command is used to update data in a table.
+
+```js
+{
     "command": "update",
     "table": "test",
     "keyspace": "test",
     "data": {
+        "where": { "id": "1" },
         "columns": {
             "name": "test2"
-        },
-        "where": {
-            "id": "1"
         }
     }
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "update",
     "data": {
-        "success": true, // if the update was successful
-        "error": null // if the update was not successful, this will contain the error (i.e. "No keyspace has been specified")
+        "success": true,
+        "error": null
     }
 }
 ```
 
-## Delete
+</details>
 
-The delete command is used to delete data from a table.
+<details>
+<summary><strong>Delete</strong></summary>
 
-```json
-{ // command example: DELETE FROM test WHERE id = '1'
+The `delete` command is used to delete data from a table.
+
+```js
+{
     "command": "delete",
     "table": "test",
     "keyspace": "test",
     "data": {
-        "where": {
-            "id": "1"
-        }
+        "where": { "id": "1" }
     }
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "delete",
     "data": {
-        "success": true, // if the delete was successful
-        "error": null // if the delete was not successful, this will contain the error (i.e. "No keyspace has been specified")
+        "success": true,
+        "error": null
     }
 }
 ```
 
-## Raw
+</details>
 
-The raw command is used to send a raw CQL query to the Scylla-DB instance. Returns whatever the Scylla-DB instance returns.
+<details>
+<summary><strong>Raw</strong></summary>
 
-```json
-{ // command example: SELECT * FROM test WHERE id = '1'
+The `raw` command is used to send a raw CQL query to the Scylla-DB instance, this is not recommended to be used.
+
+```js
+{
     "command": "raw",
-    "data": "SELECT * FROM test WHERE id = '1'"
+    "keyspace": null, // should always be null
+    "table": null, // should always be null
+    "data": {
+        "query": "SELECT * FROM test.test WHERE id = '1'"
+    }
 }
 ```
 
-### Response
+The server will respond with a JSON object containing the result of the command:
 
-```json
+```js
 {
     "command": "raw",
     "data": {
-        "result": [ // the result of the query
+        "result": [
             {
                 "id": "1",
                 "name": "test"
             }
         ],
-        "error": null // if the query was not successful, this will contain the error (i.e. "No keyspace has been specified")
+        "error": null
     }
 }
 ```
+
+</details>
+
+
+## Contributing
+
+We welcome contributions from the community. Please read our [contributing guidelines](Contributing.md) before getting started.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](License.md) file for details.
+
+## Contact
+
+If you have any questions or suggestions, please feel free to open an issue.
+
+## Acknowledgements
+
+This project uses the following third-party libraries:
+
+- [Rust](https://www.rust-lang.org/)
+- [Tokio](https://tokio.rs/)
+- [Scylla Rust Driver](https://rust-driver.docs.scylladb.com)
+
