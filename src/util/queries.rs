@@ -24,7 +24,7 @@ pub fn select_query<'a>(
     }
 
     if columns.len() == 0 {
-        println!("[Warn] No columns specified, defaulting to *, this is not recommended!");
+        // println!("[Warn] No columns specified, defaulting to *, this is not recommended!");
 
         query.push_str("*");
     }

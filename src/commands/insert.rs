@@ -1,5 +1,7 @@
+use futures_util::{stream::SplitSink, SinkExt};
 use std::sync::Arc;
-use tokio::{io::AsyncWriteExt, net::tcp::OwnedWriteHalf, sync::Mutex};
+use tokio::{net::TcpStream, sync::Mutex};
+use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use crate::{
     calculate_hash, state,
@@ -11,7 +13,7 @@ use crate::{
 };
 
 pub async fn insert(
-    write: Arc<Mutex<OwnedWriteHalf>>,
+    write: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
     command: &CommandData,
     user: Arc<Mutex<state::ClientState>>,
     keyspace: &Option<String>,
@@ -38,9 +40,14 @@ pub async fn insert(
 
         let mut write = write.lock().await;
 
-        write.write_all(response.as_bytes()).await.unwrap();
+        match write.send(Message::Text(response)).await {
+            // ? we don't care about if it succeeds or not
+            _ => {}
+        }
 
-        write.shutdown().await.unwrap();
+        match write.close().await {
+            _ => {}
+        }
 
         return;
     }
@@ -88,7 +95,9 @@ pub async fn insert(
 
                     let mut write = write.lock().await;
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    match write.send(Message::Text(response)).await {
+                        _ => {}
+                    }
                 }
                 Err(error) => {
                     let response = Command {
@@ -108,7 +117,9 @@ pub async fn insert(
 
                     let mut write = write.lock().await;
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    match write.send(Message::Text(response)).await {
+                        _ => {}
+                    }
                 }
             }
         }

@@ -1,9 +1,11 @@
+use futures_util::stream::SplitSink;
+use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::protocol::Message;
+use tokio_tungstenite::WebSocketStream;
 
 use crate::calculate_hash::calculate_hash;
 use crate::structs::common::Command;
@@ -27,57 +29,39 @@ async fn main() {
 
     while let Ok((stream, _)) = listener.accept().await {
         // let stream = Arc::new(Mutex::new(stream));
-        let (read, write) = stream.into_split();
-
-        let read = Arc::new(Mutex::new(read));
-        let write = Arc::new(Mutex::new(write));
-
-        tokio::spawn(handle_connection(
-            Arc::clone(&read),
-            Arc::clone(&write),
-            Arc::clone(&users),
-        ));
+        tokio::spawn(handle_connection(stream, Arc::clone(&users)));
     }
 }
 
-async fn handle_connection(
-    read: Arc<Mutex<OwnedReadHalf>>,
-    write: Arc<Mutex<OwnedWriteHalf>>,
-    users: Arc<Mutex<state::Store>>,
-) {
+async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>>) {
+    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
+        .await
+        .expect("Error during the websocket handshake occurred");
+
+    let ip = ws_stream.get_ref().peer_addr().unwrap();
     let user = Arc::new(Mutex::new(state::ClientState::new(false, "test", None)));
     let rnd_id = rand::random::<u32>().to_string();
-    let ip = read.lock().await.peer_addr().unwrap();
+
+    let (outgoing, incoming) = ws_stream.split();
+
+    let outgoing = Arc::new(Mutex::new(outgoing));
+    let incoming = Arc::new(Mutex::new(incoming));
 
     println!("[Info] New connection from: {} with id: {}", ip, rnd_id);
 
-    users.lock().await.clients.insert(rnd_id, Arc::clone(&user));
+    users
+        .lock()
+        .await
+        .clients
+        .insert(rnd_id.clone(), Arc::clone(&user));
 
-    loop {
-        let mut buffer = [0; 1024];
+    let mut incoming = incoming.lock().await;
 
-        let n = read.lock().await.read(&mut buffer).await.unwrap();
+    while let Some(msg) = incoming.next().await {
+        let msg = msg.unwrap();
 
-        if n == 0 {
-            break;
-        }
-
-        let received_data = &buffer[..n];
-
-        let json_str = String::from_utf8_lossy(received_data);
-
-        // Split the received data by the newline character
-        let commands: Vec<&str> = json_str.split('\n').collect();
-
-        for command in commands {
-            if command.is_empty() {
-                continue;
-            }
-
-            // println!("[Info] Received command: {}", command);
-
-            // Process each command separately
-            match serde_json::from_str::<Command>(command) {
+        match msg {
+            Message::Text(text) => match serde_json::from_str::<Command>(&text) {
                 Ok(command) => {
                     let hash = calculate_hash(
                         command.command.to_string()
@@ -95,39 +79,49 @@ async fn handle_connection(
                         println!("Length: {}", command.length);
                         println!("Data: {}", serde_json::to_string(&command.data).unwrap());
 
-                        write
+                        outgoing
                             .lock()
                             .await
-                            .write_all("Hashes do not match, dropping command".as_bytes())
+                            .send(Message::Text(
+                                "Hashes do not match, dropping command".to_string(),
+                            ))
                             .await
                             .unwrap();
 
                         continue;
                     }
 
-                    let feature = handle_command(Arc::clone(&write), command, Arc::clone(&user));
+                    let feature = handle_command(Arc::clone(&outgoing), command, Arc::clone(&user));
 
                     tokio::spawn(feature);
                 }
                 Err(e) => {
                     let response = format!("Error: {}", e);
 
-                    println!("[Warn] A User sent an invalid command: {}", command);
+                    println!("[Warn] A User sent an invalid command: {}", text);
 
-                    write
+                    outgoing
                         .lock()
                         .await
-                        .write_all(response.as_bytes())
+                        .send(Message::Text(response))
                         .await
                         .unwrap();
                 }
+            },
+            Message::Close(_) => {
+                println!("[Info] Received close");
+
+                users.lock().await.clients.remove(&rnd_id);
+            }
+            _ => {
+                println!("[Warn] Received unknown message");
             }
         }
     }
 }
 
 async fn handle_command(
-    write: Arc<Mutex<OwnedWriteHalf>>,
+    write: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
     command: Command,
     user: Arc<Mutex<state::ClientState>>,
 ) {
@@ -156,46 +150,6 @@ async fn handle_command(
                 &command,
             )
             .await;
-        }
-        "test" => {
-            if !user.lock().await.connected {
-                let response = "Not connected to scylla";
-
-                write
-                    .lock()
-                    .await
-                    .write_all(response.as_bytes())
-                    .await
-                    .unwrap();
-
-                return;
-            }
-
-            let query_result = user
-                .lock()
-                .await
-                .session
-                .as_ref()
-                .unwrap()
-                .lock()
-                .await
-                .query("SELECT user_id from kstltest.users", &[])
-                .await
-                .unwrap();
-
-            let (usr_id_idx, _) = query_result.get_column_spec("user_id").unwrap();
-
-            for row in query_result.rows.unwrap() {
-                // user_id column is a text column (user_id text) (see: https://github.com/KastelApp/CqlTables/blob/master/Tables/UserSchema.cql#L2)
-                let user_id = row.columns[usr_id_idx].as_ref().unwrap().as_text().unwrap();
-
-                write
-                    .lock()
-                    .await
-                    .write_all(user_id.as_bytes())
-                    .await
-                    .unwrap();
-            }
         }
         _ => {
             println!("Unknown command: {:?}", command);

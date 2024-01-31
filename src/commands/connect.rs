@@ -1,6 +1,7 @@
+use futures_util::{stream::SplitSink, SinkExt};
 use std::sync::Arc;
-
-use tokio::{io::AsyncWriteExt, net::tcp::OwnedWriteHalf, sync::Mutex};
+use tokio::{net::TcpStream, sync::Mutex};
+use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use crate::{
     state,
@@ -8,7 +9,7 @@ use crate::{
 };
 
 pub async fn connect(
-    write: Arc<Mutex<OwnedWriteHalf>>,
+    write: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
     command: CommandData,
     user: Arc<Mutex<state::ClientState>>,
 ) {
@@ -31,9 +32,14 @@ pub async fn connect(
 
         let response = serde_json::to_string(&error).unwrap();
 
-        write.write_all(response.as_bytes()).await.unwrap();
+        match write.send(Message::Text(response)).await {
+            // ? we don't care about if it succeeds or not
+            _ => {}
+        }
 
-        write.shutdown().await.unwrap();
+        match write.close().await {
+            _ => {}
+        }
 
         return;
     }
@@ -58,16 +64,24 @@ pub async fn connect(
 
                     let response = "Connected to scylla";
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    match write.send(Message::Text(response.to_string())).await {
+                        // ? we don't care about if it succeeds or not
+                        _ => {}
+                    }
                 }
                 Err(error) => {
                     uu.connected = false;
 
                     let response = format!("Failed to connect to scylla: {}", error);
 
-                    write.write_all(response.as_bytes()).await.unwrap();
+                    match write.send(Message::Text(response)).await {
+                        // ? we don't care about if it succeeds or not
+                        _ => {}
+                    }
 
-                    write.shutdown().await.unwrap();
+                    match write.close().await {
+                        _ => {}
+                    }
                 }
             }
         }
