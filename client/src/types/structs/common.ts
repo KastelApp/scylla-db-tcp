@@ -9,16 +9,16 @@ export type Value = string | number | boolean | null | Array<Value>;
 export interface Command {
     hash: string;
     command: string;
-    table?: string | null;
-    keyspace?: string | null;
+    table: string | null;
+    keyspace: string | null;
     // data: CommandData;
     length: number;
-    nonce?: string | null;
+    nonce: string | null;
 }
 
 export interface QueryResult {
     result: Array<{ [key: string]: Value }>;
-    error?: string | null;
+    error: string | null;
 }
 
 export interface InsertCommand extends Command {
@@ -35,3 +35,14 @@ export interface ConnectCommand extends Command {
     command: "connect";
     data: ConnectData;
 }
+
+export interface RawCommand extends Command {
+    command: "raw";
+    data: {
+        query: string;
+        values: Value[];
+        limit: number;
+    }
+}
+
+export type Commands = InsertCommand | SelectCommand | ConnectCommand | RawCommand;

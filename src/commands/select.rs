@@ -9,6 +9,7 @@ use crate::{
     state,
     structs::common::{Command, CommandData, QueryResult, Value},
     util::{parse_cql_value::parse_cql_value, queries::select_query},
+    LOGGING,
 };
 
 pub async fn select(
@@ -148,7 +149,9 @@ pub async fn select(
         }
 
         _ => {
-            println!("[Warn] Unknown command data: {:?}", command);
+            if *LOGGING.lock().await {
+                println!("[Warn] A User sent an invalid command: {:?}", command);
+            }
         }
     }
 }

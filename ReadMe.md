@@ -60,6 +60,8 @@ The server supports the following commands:
 
 For more information on how to use these commands, see the section below.
 
+Note: The objects have to match exactly in the order they are shown in src/structs, this is due to the hash verification. I don't want it to be like this but for some reason serde is weird and unless you make it exact, it will parse in random order each time. If someone knows a better way to generate the hash which doesn't depend on the order, please let me know.
+
 Before we get started, this is a generalized payload, of an error the server may send if you are not authorized to do something:
 
 ```js

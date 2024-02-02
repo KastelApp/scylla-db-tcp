@@ -1,5 +1,6 @@
 {
-  "name": "client",
+  "name": "@kastelapp/scylla",
+  "description": "Uses https://github.com/KastelApp/scylla-db-tcp to connect to ScyllaDB over WS",
   "module": "src/index.ts",
   "type": "module",
   "devDependencies": {

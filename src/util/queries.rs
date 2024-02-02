@@ -24,8 +24,6 @@ pub fn select_query<'a>(
     }
 
     if columns.len() == 0 {
-        // println!("[Warn] No columns specified, defaulting to *, this is not recommended!");
-
         query.push_str("*");
     }
 
@@ -56,6 +54,8 @@ pub fn select_query<'a>(
         query.push_str(" LIMIT ");
         query.push_str(&data.limit.to_string());
     }
+
+    println!("{}", query);
 
     Query {
         query: query.to_string(),
@@ -113,5 +113,22 @@ pub fn insert_query<'a>(
         query,
         values,
         map: column_joinable,
+    }
+}
+
+pub fn raw_query<'a>(query: &'a String, limit: i32) -> Query<'a> {
+    let mut query = query.to_string();
+
+    let values: Vec<&Value> = Vec::new();
+
+    if limit > 0 {
+        query.push_str(" LIMIT ");
+        query.push_str(&limit.to_string());
+    }
+
+    Query {
+        query,
+        values,
+        map: Vec::new(),
     }
 }

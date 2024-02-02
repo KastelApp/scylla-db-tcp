@@ -6,6 +6,7 @@ use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 use crate::{
     state,
     structs::common::{Command, CommandData, QueryResult},
+    LOGGING,
 };
 
 pub async fn connect(
@@ -44,8 +45,6 @@ pub async fn connect(
         return;
     }
 
-    uu.connected = true;
-
     match command {
         CommandData::Connect(connect_data) => {
             uu.keyspace = connect_data.keyspace;
@@ -61,10 +60,22 @@ pub async fn connect(
             {
                 Ok(session) => {
                     uu.session = Some(Arc::new(Mutex::new(session)));
+                    uu.connected = true;
 
-                    let response = "Connected to scylla";
+                    let response = Command {
+                        command: "connect".to_string(),
+                        data: CommandData::ConnectResponse(crate::structs::connect::ConnectResponse {
+                            result: "Connected to scylla".to_string(),
+                            error: None,
+                        }),
+                        keyspace: None,
+                        table: None,
+                        hash: "".to_string(),
+                        length: "".len(),
+                        nonce: None,
+                    };
 
-                    match write.send(Message::Text(response.to_string())).await {
+                    match write.send(Message::Text(serde_json::to_string(&response).unwrap())).await {
                         // ? we don't care about if it succeeds or not
                         _ => {}
                     }
@@ -72,9 +83,20 @@ pub async fn connect(
                 Err(error) => {
                     uu.connected = false;
 
-                    let response = format!("Failed to connect to scylla: {}", error);
+                    let response = Command {
+                        command: "connect".to_string(),
+                        data: CommandData::ConnectResponse(crate::structs::connect::ConnectResponse {
+                            result: "Failed to connect to scylla".to_string(),
+                            error: Some(error.to_string()),
+                        }),
+                        keyspace: None,
+                        table: None,
+                        hash: "".to_string(),
+                        length: "".len(),
+                        nonce: None,
+                    };
 
-                    match write.send(Message::Text(response)).await {
+                    match write.send(Message::Text(serde_json::to_string(&response).unwrap())).await {
                         // ? we don't care about if it succeeds or not
                         _ => {}
                     }
@@ -86,7 +108,9 @@ pub async fn connect(
             }
         }
         _ => {
-            println!("Unknown command data: {:?}", command);
+            if *LOGGING.lock().await {
+                println!("[Warn] A User sent an invalid command: {:?}", command);
+            }
         }
     }
 }

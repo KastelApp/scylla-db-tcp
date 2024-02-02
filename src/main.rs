@@ -1,5 +1,7 @@
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
+use lazy_static::lazy_static;
+use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
@@ -16,14 +18,45 @@ mod state;
 mod structs;
 mod util;
 
+// static item called "logging" which is a bool
+
+// static mut LOGGING: bool = true;
+
+lazy_static! {
+    static ref LOGGING: Mutex<bool> = Mutex::new(true);
+}
+
 #[tokio::main]
 async fn main() {
-    let addr = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let args: Vec<String> = env::args().collect();
+
+    let mut port = 8080;
+    let mut host = "127.0.0.1";
+
+    if args.len() > 1 {
+        host = &args[1];
+    }
+
+    if args.len() > 2 {
+        port = args[2].parse::<u16>().unwrap();
+    }
+
+    if args.len() > 3 {
+        let mut logging = LOGGING.lock().await;
+
+        *logging = args[3].parse::<bool>().unwrap();
+    }
+
+    // so you would do ./scylla 127.0.0.1 8080
+
+    let addr = format!("{}:{}", host, port).parse::<SocketAddr>().unwrap();
     let listener = TcpListener::bind(&addr)
         .await
         .expect("Failed to bind to address");
 
-    println!("[Info] Server listening on: {}", addr);
+    if *LOGGING.lock().await {
+        println!("[Info] Server listening on: {}", addr);
+    }
 
     let users = Arc::new(Mutex::new(state::Store::new()));
 
@@ -47,7 +80,9 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
     let outgoing = Arc::new(Mutex::new(outgoing));
     let incoming = Arc::new(Mutex::new(incoming));
 
-    println!("[Info] New connection from: {} with id: {}", ip, rnd_id);
+    if *LOGGING.lock().await {
+        println!("[Info] New connection from: {} with id: {}", ip, rnd_id);
+    }
 
     users
         .lock()
@@ -70,14 +105,16 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                     );
 
                     if hash != command.hash {
-                        println!("[Warn] Hashes do not match, dropping command");
+                        if *LOGGING.lock().await {
+                            println!("[Warn] Hashes do not match, dropping command");
 
-                        println!("Received hash: {}", command.hash);
-                        println!("Calculated hash: {}", hash);
+                            println!("Received hash: {}", command.hash);
+                            println!("Calculated hash: {}", hash);
 
-                        println!("Command: {}", command.command);
-                        println!("Length: {}", command.length);
-                        println!("Data: {}", serde_json::to_string(&command.data).unwrap());
+                            println!("Command: {}", command.command);
+                            println!("Length: {}", command.length);
+                            println!("Data: {}", serde_json::to_string(&command).unwrap());
+                        }
 
                         outgoing
                             .lock()
@@ -98,7 +135,9 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                 Err(e) => {
                     let response = format!("Error: {}", e);
 
-                    println!("[Warn] A User sent an invalid command: {}", text);
+                    if *LOGGING.lock().await {
+                        println!("[Warn] A User sent an invalid command: {}", text);
+                    }
 
                     outgoing
                         .lock()
@@ -109,12 +148,16 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                 }
             },
             Message::Close(_) => {
-                println!("[Info] Received close");
+                if *LOGGING.lock().await {
+                    println!("[Info] User {} disconnected", rnd_id);
+                }
 
                 users.lock().await.clients.remove(&rnd_id);
             }
             _ => {
-                println!("[Warn] Received unknown message");
+                if *LOGGING.lock().await {
+                    println!("[Warn] Received unknown message: {:?}", msg);
+                }
             }
         }
     }
@@ -151,8 +194,21 @@ async fn handle_command(
             )
             .await;
         }
+        "raw" => {
+            commands::raw::raw(
+                Arc::clone(&write),
+                &command.data,
+                user,
+                &command.keyspace,
+                &command.table,
+                &command,
+            )
+            .await;
+        }
         _ => {
-            println!("Unknown command: {:?}", command);
+            if *LOGGING.lock().await {
+                println!("[Warn] Unknown command: {:?}", command);
+            }
         }
     }
 }

@@ -15,3 +15,9 @@ pub struct ConnectData {
     pub credentials: CredentialsData,
     pub keyspace: String,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ConnectResponse {
+    pub result: String,
+    pub error: Option<String>,
+}

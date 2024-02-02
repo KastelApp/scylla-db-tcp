@@ -4,12 +4,10 @@ use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use crate::{
-    calculate_hash, state,
-    structs::{
+    calculate_hash, state, structs::{
         common::{Command, CommandData, QueryResult},
         insert::InsertResponse,
-    },
-    util::queries::insert_query,
+    }, util::queries::insert_query, LOGGING
 };
 
 pub async fn insert(
@@ -125,7 +123,9 @@ pub async fn insert(
         }
 
         _ => {
-            println!("[Warn] Unknown command data: {:?}", command);
+            if *LOGGING.lock().await {
+                println!("[Warn] A User sent an invalid command: {:?}", command);
+            }
         }
     }
 }

@@ -3,9 +3,10 @@ use scylla::serialize::value::SerializeCql;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    connect::ConnectData,
+    connect::{ConnectData, ConnectResponse},
     insert::{InsertData, InsertResponse},
     select::SelectData,
+    raw::RawData,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -17,6 +18,7 @@ pub enum Value {
     Int(i64),
     Null,
     Array(Vec<Value>),
+    Map(Vec<(Value, Value)>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -27,6 +29,8 @@ pub enum CommandData {
     Connect(ConnectData),
     SelectResponse(QueryResult),
     InsertResponse(InsertResponse),
+    Raw(RawData),
+    ConnectResponse(ConnectResponse)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -72,6 +76,9 @@ impl SerializeCql for Value {
                 scylla::serialize::value::SerializeCql::serialize(&None::<String>, typ, writer)
             }
             &Value::Array(ref value) => {
+                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+            }
+            &Value::Map(ref value) => {
                 scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
             }
         }

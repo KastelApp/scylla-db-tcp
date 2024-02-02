@@ -25,6 +25,18 @@ pub fn parse_cql_value(column: Option<&CqlValue>) -> Value {
                 Value::Array(array)
             }
             scylla::frame::response::result::CqlValue::Empty => Value::Null,
+            scylla::frame::response::result::CqlValue::Blob(blob) => {
+                Value::Str(String::from_utf8(blob.to_owned()).unwrap())
+            }
+            scylla::frame::response::result::CqlValue::Map(decimal) => {
+                let mut map = Vec::new();
+
+                for (key, value) in decimal {
+                    map.push((parse_cql_value(Some(key)), parse_cql_value(Some(value))));
+                }
+
+                Value::Map(map)
+            }
             _ => {
                 println!("[Warn] Unknown CqlValue: {:?}", value);
 
