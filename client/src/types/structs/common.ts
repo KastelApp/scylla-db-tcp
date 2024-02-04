@@ -2,7 +2,7 @@ import type { ConnectData } from "./connect.ts";
 import type { InsertData, InsertResponse } from "./insert.ts";
 import type { SelectData } from "./select.ts";
 
-export type Value = string | number | boolean | null | Array<Value>;
+export type Value = string | number | boolean | null | Array<Value> | { [key: string]: Value };
 
 // export type CommandData = SelectData | InsertData | ConnectData | QueryResult | InsertResponse;
 

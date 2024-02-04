@@ -22,3 +22,9 @@ export interface TypeResult {
     field_names: string[];
     field_types: string[];
 }
+
+export interface KeyspaceResult {
+    keyspace_name: string;
+    durable_writes: boolean;
+    replication: [string, string][];
+}

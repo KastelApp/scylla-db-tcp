@@ -66,6 +66,7 @@ pub async fn insert(
 
             match session.query(query.query, query.values).await {
                 Ok(_) => {
+                    println!("Insert successful");
                     let mut response = Command {
                         command: "insert".to_string(),
                         data: CommandData::InsertResponse(InsertResponse {

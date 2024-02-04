@@ -1,12 +1,14 @@
+use std::{borrow::BorrowMut, collections::HashMap, fmt::Debug, hash::Hash, io::Stderr};
+
 use indexmap::IndexMap;
-use scylla::serialize::value::SerializeCql;
+use scylla::{frame::response::result::ColumnType, serialize::{row::SerializeRow, value::SerializeCql}, FromUserType, SerializeCql};
 use serde::{Deserialize, Serialize};
 
 use super::{
     connect::{ConnectData, ConnectResponse},
     insert::{InsertData, InsertResponse},
-    select::SelectData,
     raw::RawData,
+    select::SelectData,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -14,11 +16,12 @@ use super::{
 pub enum Value {
     Str(String),
     Bool(bool),
-    Num(f64),
-    Int(i64),
+    Num(i32),
     Null,
     Array(Vec<Value>),
     Map(Vec<(Value, Value)>),
+    Date(String),
+    // Object(HashMap<String, Value>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -30,7 +33,7 @@ pub enum CommandData {
     SelectResponse(QueryResult),
     InsertResponse(InsertResponse),
     Raw(RawData),
-    ConnectResponse(ConnectResponse)
+    ConnectResponse(ConnectResponse),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -54,33 +57,102 @@ impl SerializeCql for Value {
     fn serialize<'b>(
         &self,
         typ: &scylla::frame::response::result::ColumnType,
-        writer: scylla::serialize::CellWriter<'b>,
+        mut writer: scylla::serialize::CellWriter<'b>,
     ) -> Result<
         scylla::serialize::writers::WrittenCellProof<'b>,
         scylla::serialize::SerializationError,
     > {
         match self {
             &Value::Str(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Str: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
             &Value::Num(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Num: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
-            &Value::Int(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            }
+            // &Value::Int(ref value) => {
+            //     scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+            // }
             &Value::Bool(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Bool: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
             &Value::Null => {
-                scylla::serialize::value::SerializeCql::serialize(&None::<String>, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(&None::<String>, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(
+                    &None::<String>,
+                    typ,
+                    writer,
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Null: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
             &Value::Array(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Array: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
             &Value::Map(ref value) => {
-                scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Map: {:?}", err);
+                        Err(err)
+                    }
+                }
             }
+            &Value::Date(ref value) => {
+                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
+                match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Date: {:?}", err);
+                        Err(err)
+                    }
+                }
+            }
+        //     &Value::Object(ref value) => {
+        //         match writer.into_value_builder().append_bytes(value.to_string().as_bytes()).serialize(ctx, writer) {
+        //             Ok(value) => Ok(value),
+        //             Err(err) => {
+        //                 println!("[Error] Failed to serialize Object: {:?}", err);
+        //                 Err(scylla::serialize::SerializationError::new(std::io::Error::new(
+        //                     std::io::ErrorKind::Other,
+        //                     "Failed to serialize Object",
+        //                 )))
+        //             }
+        //         }
+                 
+        //     }
         }
     }
 }

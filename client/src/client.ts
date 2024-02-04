@@ -145,7 +145,7 @@ class Client {
         this.#events.get(event)?.forEach((callback) => callback(data));
     }
 
-    public async connect() {
+    public async connect(): Promise<void> {
         if (this.connected) return;
 
         if (this.scyllatcp.startLocally) {
@@ -164,6 +164,16 @@ class Client {
         ws.on("message", (data) => this.handleMessage(data));
 
         this.#ws = ws;
+
+        return new Promise((resolve, reject) => {
+            this.on("connect", () => {
+                resolve();
+            });
+
+            setTimeout(() => {
+                reject("Connection timed out");
+            }, 15_000);
+        });
     }
 
     public async startTcp() {
@@ -232,8 +242,6 @@ class Client {
 
             if (!this.connected && parsed.command === "connect") {
                 this.connected = true;
-
-                this.emit("connect");
 
                 for (const cmd of baseCommands) {
                     cmd.cmd.length = cmd.cmd.command.length + JSON.stringify(cmd.cmd.data).length;
@@ -320,6 +328,8 @@ class Client {
 
             this.parsedData.get(index.for_table)!.indexKeys.push(index.keys.filter((a) => a !== "idx_token"));
         }
+
+        this.emit("connect");
     }
 
     public execute(query: string, values?: values[], options?: {
@@ -369,8 +379,18 @@ class Client {
             }, 15_000);
         });
     }
+
+    public handleCommad(data: Commands) {
+        data.length = data.command.length + JSON.stringify(data.data).length;
+
+        data.hash = this.generateHash(data.command + data.length + JSON.stringify(data.data));
+
+        console.log(Bun.inspect(data, { colors: true, depth: 20 }));
+
+        this.#ws.send(JSON.stringify(data));
+    }
 }
 
 export default Client;
 
-export { Client };
+export { Client, type ClientOptions };

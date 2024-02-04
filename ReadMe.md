@@ -8,6 +8,12 @@ This is a simple TCP server built with Rust and Tokio, which supports commands t
 - Supports a variety of commands including `select`, `insert`, `update`, `delete`, `connect`, and `raw`.
 - Can be used with the NPM package `@kastelapp/scylla`, or independently.
 
+## Help Needed:
+
+Currently, it cannot serialize UDT, I'm not too sure how to do it so for now I've given up on this lol, if someone can help me with this, that would be great, besides that everything should work fine. So if you don't need to use UDT's, you should be good to go. (UDT: User Defined Types)
+
+It CAN select them from the database, but it cannot insert them.
+
 ## Installation
 
 To install the server, checkout github releases. If you wish to build it yourself, you can do so by cloning the repository and running `cargo build --release`.

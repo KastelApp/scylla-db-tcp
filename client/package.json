@@ -1,8 +1,17 @@
 {
   "name": "@kastelapp/scylla",
   "description": "Uses https://github.com/KastelApp/scylla-db-tcp to connect to ScyllaDB over WS",
-  "module": "src/index.ts",
+  "module": "dist/index.js",
+  "main": "dist/index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "typings": "dist/index.d.ts",
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -11,5 +20,14 @@
   },
   "dependencies": {
     "ws": "^8.16.0"
-  }
+  },
+  "files": [
+    "dist"
+  ],
+  "contributors": [
+		{
+			"name": "DarkerInk",
+			"email": "darkerink@kastelapp.com"
+		}
+	]
 }

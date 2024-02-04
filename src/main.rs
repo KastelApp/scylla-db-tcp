@@ -104,29 +104,29 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                             + &serde_json::to_string(&command.data).unwrap(),
                     );
 
-                    if hash != command.hash {
-                        if *LOGGING.lock().await {
-                            println!("[Warn] Hashes do not match, dropping command");
+                    // if hash != command.hash {
+                    //     if *LOGGING.lock().await {
+                    //         println!("[Warn] Hashes do not match, dropping command");
 
-                            println!("Received hash: {}", command.hash);
-                            println!("Calculated hash: {}", hash);
+                    //         println!("Received hash: {}", command.hash);
+                    //         println!("Calculated hash: {}", hash);
 
-                            println!("Command: {}", command.command);
-                            println!("Length: {}", command.length);
-                            println!("Data: {}", serde_json::to_string(&command).unwrap());
-                        }
+                    //         println!("Command: {}", command.command);
+                    //         println!("Length: {}", command.length);
+                    //         println!("Data: {}", serde_json::to_string(&command).unwrap());
+                    //     }
 
-                        outgoing
-                            .lock()
-                            .await
-                            .send(Message::Text(
-                                "Hashes do not match, dropping command".to_string(),
-                            ))
-                            .await
-                            .unwrap();
+                    //     outgoing
+                    //         .lock()
+                    //         .await
+                    //         .send(Message::Text(
+                    //             "Hashes do not match, dropping command".to_string(),
+                    //         ))
+                    //         .await
+                    //         .unwrap();
 
-                        continue;
-                    }
+                    //     continue;
+                    // }
 
                     let feature = handle_command(Arc::clone(&outgoing), command, Arc::clone(&user));
 

@@ -1,56 +1,67 @@
-import { newprocessArgs } from "./temp.ts";
-import Client from "./client.ts";
-import UnderScoreCqlToCamelCaseMappings from "./mapping/tables/UnderscoreCqlToCamelCaseMappings.ts";
-import UnderscoreCqlToPascalCaseMappings from "./mapping/tables/UnderscoreCqlToPascalCaseMappings.ts";
+import { Client, type ClientOptions } from "@/client.ts";
+import mapping, {
+    DefaultMapping,
+    Mapper,
+    ModelMapper,
+    UnderScoreCqlToCamelCaseMappings,
+    UnderscoreCqlToPascalCaseMappings
+} from "@/mapping/index.ts";
+import type {
+    IndexResult,
+    Result,
+    TypeResult
+} from '@/types/responses.ts'
+import type {
+    Command,
+    Commands,
+    ConnectCommand,
+    InsertCommand,
+    QueryResult,
+    RawCommand,
+    SelectCommand,
+    Value
+} from '@/types/structs/common.ts'
+import type {
+    ConnectData
+} from '@/types/structs/connect.ts'
+import type {
+    InsertData,
+    InsertResponse
+} from '@/types/structs/insert.ts'
+import type {
+    SelectData
+} from '@/types/structs/select.ts'
+import { baseCommands } from "./util/baseCommands.ts";
 
-const args = newprocessArgs([ // temporary for development
-    {
-        name: "username",
-        type: "string",
-    },
-    {
-        name: "password",
-        type: "string",
-    },
-    {
-        name: "keyspace",
-        type: "string",
-        optional: true,
-        default: "test"
-    },
-    {
-        name: "clear",
-        type: "boolean",
-        optional: true,
-    }
-]);
 
-const client = new Client({
-    scyllatcp: {
-        host: "localhost",
-        port: 8080,
-        startLocally: false,
-        pullLatest: false,
-    },
-    contactPoints: ["localhost:9042"],
-    credentials: {
-        username: args.username as string,
-        password: args.password as string,
-    },
-    keyspace: args.keyspace as string,
-    localDataCenter: "datacenter1",
-})
+export {
+    Client,
+    mapping,
+    baseCommands,
+    DefaultMapping,
+    Mapper,
+    ModelMapper,
+    UnderScoreCqlToCamelCaseMappings,
+    UnderscoreCqlToPascalCaseMappings
+};
 
-client.on("connect", async () => {
-    console.log("Connected!");
+export default Client;
 
-    const lols = await client.execute("select * from kstltest.users");
-
-    const test = new UnderscoreCqlToPascalCaseMappings();
-
-    const fixed = test.objectToFixedCasing(lols);
-
-    console.log(fixed);
-})
-
-await client.connect();
+export type {
+    IndexResult,
+    Result,
+    TypeResult,
+    Command,
+    Commands,
+    ConnectCommand,
+    InsertCommand,
+    QueryResult,
+    RawCommand,
+    SelectCommand,
+    Value,
+    ConnectData,
+    InsertData,
+    InsertResponse,
+    SelectData,
+    ClientOptions
+};

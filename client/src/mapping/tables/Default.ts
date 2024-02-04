@@ -11,7 +11,7 @@ class DefaultMapping {
         return column;
     }
 
-    public objectToFixedCasing<T>(obj: T): any {
+    public objectToNormalCasing<T>(obj: T): any {
         if (typeof obj !== "object" || obj === null || obj === undefined) return obj;
 
         if (!Array.isArray(obj)) {
@@ -21,7 +21,7 @@ class DefaultMapping {
                 if (value instanceof Date || value === null) {
                     newObj[this.getPropertyName(key)] = value;
                 } else if (typeof value === "object") {
-                    newObj[this.getPropertyName(key)] = this.objectToFixedCasing(value);
+                    newObj[this.getPropertyName(key)] = this.objectToNormalCasing(value);
                 } else {
                     newObj[this.getPropertyName(key)] = value;
                 }
@@ -29,7 +29,31 @@ class DefaultMapping {
 
             return newObj;
         } else if (Array.isArray(obj)) {
-            return obj.map((value) => this.objectToFixedCasing(value));
+            return obj.map((value) => this.objectToNormalCasing(value));
+        }
+
+        return obj;
+    }
+
+    public objectToSnakeCasing<T>(obj: T): any {
+        if (typeof obj !== "object" || obj === null || obj === undefined) return obj;
+
+        if (!Array.isArray(obj)) {
+            const newObj: { [key: string]: any } = {};
+
+            for (const [key, value] of Object.entries(obj)) {
+                if (value instanceof Date || value === null) {
+                    newObj[this.getColumnName(key)] = value;
+                } else if (typeof value === "object") {
+                    newObj[this.getColumnName(key)] = this.objectToSnakeCasing(value);
+                } else {
+                    newObj[this.getColumnName(key)] = value;
+                }
+            }
+
+            return newObj;
+        } else if (Array.isArray(obj)) {
+            return obj.map((value) => this.objectToSnakeCasing(value));
         }
 
         return obj;

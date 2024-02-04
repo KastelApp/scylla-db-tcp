@@ -37,7 +37,10 @@ pub fn select_query<'a>(
     query.push_str(keyspace.as_str());
     query.push_str(".");
     query.push_str(table.as_str());
-    query.push_str(" WHERE ");
+
+    if wc.len() > 0 {
+        query.push_str(" WHERE ");
+    }
 
     let mut where_clause = Vec::new();
 

@@ -51,6 +51,11 @@ const parser = (results: Result[], indexes: IndexResult[]) => {
 
     const primaryKeys = results.filter((a) => a.kind === "partition_key" && !a.table_name.endsWith("_index")).map((a) => ({ table: a.table_name, column: a.column_name }));
     const indexKeys = results.filter((a) => {
+
+        if (a.table_name.endsWith("_index")) {
+            return primaryKeys.some((b) => b.table === a.table_name.slice(0, -6) && b.column === a.column_name);
+        }
+
         return a.table_name.endsWith("_index") && indexes.some((b) => b.index_name === a.table_name.slice(0, -6));
     })
         .map((a) => ({ table: a.table_name, column: a.column_name })).reduce((acc, cur) => {
