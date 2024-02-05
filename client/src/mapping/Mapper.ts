@@ -38,14 +38,3 @@ class Mapper<T extends { [key: string]: Model }> {
 export default Mapper;
 
 export type { Model, MapperOptions };
-
-const test = {
-    test1: "hi",
-    test2: "2"
-};
-
-// for each key in test redeclare it as boolean
-
-type Test<T> = {
-
-}

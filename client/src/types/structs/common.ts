@@ -4,14 +4,11 @@ import type { SelectData } from "./select.ts";
 
 export type Value = string | number | boolean | null | Array<Value> | { [key: string]: Value };
 
-// export type CommandData = SelectData | InsertData | ConnectData | QueryResult | InsertResponse;
-
 export interface Command {
     hash: string;
     command: string;
     table: string | null;
     keyspace: string | null;
-    // data: CommandData;
     length: number;
     nonce: string | null;
     type: string | null

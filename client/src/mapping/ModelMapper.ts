@@ -142,7 +142,7 @@ class ModelMapper<T = any> {
                 hash: "",
                 length: 0,
                 nonce: generateUUIDv4(),
-                type: this.model.tables[0]
+                type: "raw"
             };
 
             this.client.nonces.set(command.nonce!, (cmd, client) => {
@@ -199,6 +199,10 @@ class ModelMapper<T = any> {
                 nonce: generateUUIDv4(),
                 type: null
             };
+
+            if (Object.values(doc).some((value) => Array.isArray(value) && value.some((v) => typeof v === "object"))) {
+                command.type = this.model.tables[0];
+            }
 
             this.client.nonces.set(command.nonce!, (cmd, client) => {
                 if (cmd.data.error) {

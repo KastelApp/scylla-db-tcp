@@ -1,10 +1,7 @@
-pub mod ban;
 pub mod udt;
-pub mod bot;
-pub mod empty_buckets;
-pub mod channel;
-pub mod dm;
-pub mod emoji;
-pub mod file;
-pub mod user;
+pub mod dms;
 pub mod settings;
+pub mod friends;
+pub mod guild_members;
+pub mod messages;
+pub mod permissions_overides;
