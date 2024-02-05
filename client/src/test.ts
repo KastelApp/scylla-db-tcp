@@ -97,11 +97,11 @@ client.on("connect", async () => {
                         created_date: "2024-02-03T18:34:33.632Z",
                         flags: 0,
                         ip: "",
-                        token_: "test",
-                        token_id: "test",
+                        token_: "cats",
+                        token_id: "cats",
                     }
                 ],
-                user_id: "test",
+                user_id: "cats",
                 guild_order: [],
                 allowed_invites: 0,
             },
@@ -110,6 +110,7 @@ client.on("connect", async () => {
         hash: "45baed9197ea599ca57881653bd73d4ef1060bb64f6ab8b82f639b2be0cd1d444c573022765c26f7ebab85c38f05a5729e225bf918040958cc2bd976b376f42c",
         length: 723,
         nonce: "a5ff38a6-8451-47da-a29c-c0d1bc8fea74",
+        type: "settings"
     }
 
     client.nonces.set(command.nonce!, (data, client) => {
@@ -118,5 +119,9 @@ client.on("connect", async () => {
 
     client.handleCommad(command);
 });
+
+client.on("raw_message", (msg) => {
+    console.log(msg);
+})
 
 await client.connect();

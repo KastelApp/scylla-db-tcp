@@ -1,7 +1,7 @@
-use std::{borrow::BorrowMut, collections::HashMap, fmt::Debug, hash::Hash, io::Stderr};
+use std::collections::HashMap;
 
 use indexmap::IndexMap;
-use scylla::{frame::response::result::ColumnType, serialize::{row::SerializeRow, value::SerializeCql}, FromUserType, SerializeCql};
+use scylla::serialize::value::SerializeCql;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -21,7 +21,7 @@ pub enum Value {
     Array(Vec<Value>),
     Map(Vec<(Value, Value)>),
     Date(String),
-    // Object(HashMap<String, Value>),
+    Object(IndexMap<String, Value>)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -45,6 +45,8 @@ pub struct Command {
     pub data: CommandData,
     pub length: usize, // ? The client sends the length of the data
     pub nonce: Option<String>,
+    #[serde(rename = "type")]
+    pub type_: Option<String>, // type = user, settings, channel, etc
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -57,14 +59,13 @@ impl SerializeCql for Value {
     fn serialize<'b>(
         &self,
         typ: &scylla::frame::response::result::ColumnType,
-        mut writer: scylla::serialize::CellWriter<'b>,
+        writer: scylla::serialize::CellWriter<'b>,
     ) -> Result<
         scylla::serialize::writers::WrittenCellProof<'b>,
         scylla::serialize::SerializationError,
     > {
         match self {
             &Value::Str(ref value) => {
-                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
                     Ok(value) => Ok(value),
                     Err(err) => {
@@ -83,11 +84,7 @@ impl SerializeCql for Value {
                     }
                 }
             }
-            // &Value::Int(ref value) => {
-            //     scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
-            // }
             &Value::Bool(ref value) => {
-                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
                     Ok(value) => Ok(value),
                     Err(err) => {
@@ -97,7 +94,6 @@ impl SerializeCql for Value {
                 }
             }
             &Value::Null => {
-                // scylla::serialize::value::SerializeCql::serialize(&None::<String>, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(
                     &None::<String>,
                     typ,
@@ -111,7 +107,6 @@ impl SerializeCql for Value {
                 }
             }
             &Value::Array(ref value) => {
-                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
                     Ok(value) => Ok(value),
                     Err(err) => {
@@ -121,7 +116,6 @@ impl SerializeCql for Value {
                 }
             }
             &Value::Map(ref value) => {
-                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
                     Ok(value) => Ok(value),
                     Err(err) => {
@@ -131,7 +125,6 @@ impl SerializeCql for Value {
                 }
             }
             &Value::Date(ref value) => {
-                // scylla::serialize::value::SerializeCql::serialize(value, typ, writer)
                 match scylla::serialize::value::SerializeCql::serialize(value, typ, writer) {
                     Ok(value) => Ok(value),
                     Err(err) => {
@@ -140,19 +133,22 @@ impl SerializeCql for Value {
                     }
                 }
             }
-        //     &Value::Object(ref value) => {
-        //         match writer.into_value_builder().append_bytes(value.to_string().as_bytes()).serialize(ctx, writer) {
-        //             Ok(value) => Ok(value),
-        //             Err(err) => {
-        //                 println!("[Error] Failed to serialize Object: {:?}", err);
-        //                 Err(scylla::serialize::SerializationError::new(std::io::Error::new(
-        //                     std::io::ErrorKind::Other,
-        //                     "Failed to serialize Object",
-        //                 )))
-        //             }
-        //         }
-                 
-        //     }
+            &Value::Object(ref value) => {
+
+                let mut hashmap = HashMap::new();
+
+                for (key, value) in value {
+                    hashmap.insert(key, value);
+                }
+
+                match scylla::serialize::value::SerializeCql::serialize(&hashmap, typ, writer) {
+                    Ok(value) => Ok(value),
+                    Err(err) => {
+                        println!("[Error] Failed to serialize Object: {:?}", err);
+                        Err(err)
+                    }
+                }
+            }
         }
     }
 }

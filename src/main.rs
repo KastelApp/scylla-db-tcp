@@ -18,10 +18,6 @@ mod state;
 mod structs;
 mod util;
 
-// static item called "logging" which is a bool
-
-// static mut LOGGING: bool = true;
-
 lazy_static! {
     static ref LOGGING: Mutex<bool> = Mutex::new(true);
 }
@@ -46,8 +42,6 @@ async fn main() {
 
         *logging = args[3].parse::<bool>().unwrap();
     }
-
-    // so you would do ./scylla 127.0.0.1 8080
 
     let addr = format!("{}:{}", host, port).parse::<SocketAddr>().unwrap();
     let listener = TcpListener::bind(&addr)
@@ -104,31 +98,34 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                             + &serde_json::to_string(&command.data).unwrap(),
                     );
 
-                    // if hash != command.hash {
-                    //     if *LOGGING.lock().await {
-                    //         println!("[Warn] Hashes do not match, dropping command");
+                    if hash != command.hash {
+                        if *LOGGING.lock().await {
+                            println!("[Warn] Hashes do not match, dropping command");
 
-                    //         println!("Received hash: {}", command.hash);
-                    //         println!("Calculated hash: {}", hash);
+                            println!("Received hash: {}", command.hash);
+                            println!("Calculated hash: {}", hash);
 
-                    //         println!("Command: {}", command.command);
-                    //         println!("Length: {}", command.length);
-                    //         println!("Data: {}", serde_json::to_string(&command).unwrap());
-                    //     }
+                            println!("Command: {}", command.command);
+                            println!("Length: {}", command.length);
+                            println!("Data: {}", serde_json::to_string(&command).unwrap());
+                        }
 
-                    //     outgoing
-                    //         .lock()
-                    //         .await
-                    //         .send(Message::Text(
-                    //             "Hashes do not match, dropping command".to_string(),
-                    //         ))
-                    //         .await
-                    //         .unwrap();
+                        outgoing
+                            .lock()
+                            .await
+                            .send(Message::Text(
+                                "Hashes do not match, dropping command".to_string(),
+                            ))
+                            .await
+                            .unwrap();
 
-                    //     continue;
-                    // }
+                        continue;
+                    }
+
+                    println!("Feature: {:?}", command.type_);
 
                     let feature = handle_command(Arc::clone(&outgoing), command, Arc::clone(&user));
+
 
                     tokio::spawn(feature);
                 }

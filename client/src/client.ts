@@ -218,7 +218,8 @@ class Client {
             length: 0,
             keyspace: null,
             nonce: null,
-            table: null
+            table: null,
+            type: null
         };
 
         cmd.length = cmd.command.length + JSON.stringify(cmd.data).length;
@@ -290,6 +291,8 @@ class Client {
     }
 
     public attemptParsing() {
+        console.log(this.data);
+
         if (!this.data.tables || !this.data.types || !this.data.indexes) return;
 
         const parse = parser(this.data.tables, this.data.indexes);
@@ -349,7 +352,8 @@ class Client {
                     query,
                     values: values ?? [],
                     limit: options?.limit ?? 0
-                }
+                },
+                type: null
             };
 
             command.length = command.command.length + JSON.stringify(command.data).length;

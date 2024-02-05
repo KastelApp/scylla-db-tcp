@@ -14,6 +14,7 @@ export interface Command {
     // data: CommandData;
     length: number;
     nonce: string | null;
+    type: string | null
 }
 
 export interface QueryResult {

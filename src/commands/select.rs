@@ -34,6 +34,7 @@ pub async fn select(
             hash: "".to_string(),
             length: "".len(),
             nonce: None,
+            type_: None,
         };
 
         let response = serde_json::to_string(&error).unwrap();
@@ -107,6 +108,7 @@ pub async fn select(
                             error: None,
                         }),
                         nonce: raw_command.nonce.clone(), // todo: do not clone
+                        type_: None,
                     };
 
                     let string_query_data = serde_json::to_string(&query_result.data).unwrap();
@@ -137,6 +139,7 @@ pub async fn select(
                             error: Some(error.to_string()),
                         }),
                         nonce: raw_command.nonce.clone(),
+                        type_: None,
                     };
 
                     let response = serde_json::to_string(&query_result).unwrap();

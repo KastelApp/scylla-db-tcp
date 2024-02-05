@@ -29,6 +29,7 @@ pub async fn connect(
             hash: "".to_string(),
             length: "".len(),
             nonce: None,
+            type_: None,
         };
 
         let response = serde_json::to_string(&error).unwrap();
@@ -64,18 +65,24 @@ pub async fn connect(
 
                     let response = Command {
                         command: "connect".to_string(),
-                        data: CommandData::ConnectResponse(crate::structs::connect::ConnectResponse {
-                            result: "Connected to scylla".to_string(),
-                            error: None,
-                        }),
+                        data: CommandData::ConnectResponse(
+                            crate::structs::connect::ConnectResponse {
+                                result: "Connected to scylla".to_string(),
+                                error: None,
+                            },
+                        ),
                         keyspace: None,
                         table: None,
                         hash: "".to_string(),
                         length: "".len(),
                         nonce: None,
+                        type_: None,
                     };
 
-                    match write.send(Message::Text(serde_json::to_string(&response).unwrap())).await {
+                    match write
+                        .send(Message::Text(serde_json::to_string(&response).unwrap()))
+                        .await
+                    {
                         // ? we don't care about if it succeeds or not
                         _ => {}
                     }
@@ -85,18 +92,24 @@ pub async fn connect(
 
                     let response = Command {
                         command: "connect".to_string(),
-                        data: CommandData::ConnectResponse(crate::structs::connect::ConnectResponse {
-                            result: "Failed to connect to scylla".to_string(),
-                            error: Some(error.to_string()),
-                        }),
+                        data: CommandData::ConnectResponse(
+                            crate::structs::connect::ConnectResponse {
+                                result: "Failed to connect to scylla".to_string(),
+                                error: Some(error.to_string()),
+                            },
+                        ),
                         keyspace: None,
                         table: None,
                         hash: "".to_string(),
                         length: "".len(),
                         nonce: None,
+                        type_: None,
                     };
 
-                    match write.send(Message::Text(serde_json::to_string(&response).unwrap())).await {
+                    match write
+                        .send(Message::Text(serde_json::to_string(&response).unwrap()))
+                        .await
+                    {
                         // ? we don't care about if it succeeds or not
                         _ => {}
                     }

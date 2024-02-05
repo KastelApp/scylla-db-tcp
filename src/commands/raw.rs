@@ -31,6 +31,7 @@ pub async fn raw(
             hash: "".to_string(),
             length: "".len(),
             nonce: None,
+            type_: None,
         };
 
         let response = serde_json::to_string(&error).unwrap();
@@ -54,7 +55,6 @@ pub async fn raw(
             let session = user.session.as_ref().unwrap().lock().await;
 
             let query = raw_query(&raw_data.query, raw_data.limit.to_owned().unwrap_or(0));
-
 
             match session.query(query.query, &raw_data.values).await {
                 Ok(query_result) => {
@@ -97,6 +97,7 @@ pub async fn raw(
                             error: None,
                         }),
                         nonce: raw_command.nonce.clone(), // todo: do not clone
+                        type_: None,
                     };
 
                     let string_query_data = serde_json::to_string(&query_result.data).unwrap();
@@ -129,6 +130,7 @@ pub async fn raw(
                         hash: "".to_string(),
                         length: "".len(),
                         nonce: None,
+                        type_: None,
                     };
 
                     let response_string = serde_json::to_string(&response).unwrap();

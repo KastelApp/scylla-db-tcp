@@ -36,7 +36,8 @@ export const baseCommands: { cmd: BaseCommand, func: (data: cmd, client: Client)
             length: 0,
             keyspace: "system_schema",
             nonce: null,
-            table: "columns"
+            table: "columns",
+            type: "raw"
         },
         func: (data: cmd<Result>, client) => {
             client.data.tables = data.data.result;
@@ -58,7 +59,8 @@ export const baseCommands: { cmd: BaseCommand, func: (data: cmd, client: Client)
             length: 0,
             keyspace: "system_schema",
             nonce: null,
-            table: "types"
+            table: "types",
+            type: "raw"
         },
         func: (data: cmd<TypeResult>, client) => {
             client.data.types = data.data.result;
@@ -80,7 +82,8 @@ export const baseCommands: { cmd: BaseCommand, func: (data: cmd, client: Client)
             length: 0,
             keyspace: "system_schema",
             nonce: null,
-            table: "indexes"
+            table: "indexes",
+            type: "raw"
         },
         func: (data: cmd<IndexResult>, client) => {
             client.data.indexes = data.data.result;

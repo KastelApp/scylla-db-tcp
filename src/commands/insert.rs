@@ -1,12 +1,14 @@
+use chrono::DateTime;
 use futures_util::{stream::SplitSink, SinkExt};
+use scylla::frame::value::CqlTimestamp;
+use serde_json::Result;
 use std::sync::Arc;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use crate::{
-    calculate_hash, state, structs::{
-        common::{Command, CommandData, QueryResult},
-        insert::InsertResponse,
+    calculate_hash::calculate_hash, state, structs::{
+        common::{Command, CommandData, QueryResult}, custom::{settings::{CqlSettings, Settings}, udt::{GuildOrderType, GuildOrderTypeUDT, MentionsType, MentionsTypeUDT, TokenType, TokensTypeUDT}}, insert::InsertResponse
     }, util::queries::insert_query, LOGGING
 };
 
@@ -32,6 +34,7 @@ pub async fn insert(
             hash: "".to_string(),
             length: "".len(),
             nonce: None,
+            type_: None,
         };
 
         let response = serde_json::to_string(&error).unwrap();
@@ -64,62 +67,135 @@ pub async fn insert(
                 insert_data,
             );
 
-            match session.query(query.query, query.values).await {
-                Ok(_) => {
-                    println!("Insert successful");
-                    let mut response = Command {
-                        command: "insert".to_string(),
-                        data: CommandData::InsertResponse(InsertResponse {
-                            error: None,
-                            success: true,
-                        }),
-                        keyspace: None,
-                        table: None,
-                        hash: "".to_string(),
-                        length: "".len(),
-                        nonce: raw_command.nonce.clone(), // todo: do not clone
-                    };
+            println!("{:?}", raw_command.type_);
 
-                    let string_response = serde_json::to_string(&response.data).unwrap();
+            match raw_command.type_.as_deref() {
+                Some("settings") => {
+                    // match insert_data.columns to Types::Settings
+                    let json = serde_json::to_string(&insert_data.columns).unwrap();
 
-                    response.length = string_response.len() + response.command.len();
+                    println!("{}", json);
 
-                    response.hash = calculate_hash(
-                        response.command.to_string()
-                            + &response.length.to_string()
-                            + &string_response,
-                    );
+                    let result: Result<Settings> = serde_json::from_str(&json);
 
-                    let response = serde_json::to_string(&response).unwrap();
+                    match result {
+                        Ok(settings) => {
+                            match settings {
+                                Settings { user_id, status, custom_status, bio, tokens, theme, language, privacy, mentions, max_guilds, max_file_upload_size, guild_order, allowed_invites } => {
+                                    let tokens = tokens.into_iter().map(|token| {
+                                        let TokenType { created_date, flags, ip, token_id, token_ } = token;
+                                        TokensTypeUDT {
+                                            // created_date,
+                                            flags,
+                                            ip,
+                                            token_id,
+                                            token_,
+                                            created_date: CqlTimestamp(DateTime::parse_from_rfc3339(&created_date).unwrap().timestamp_millis())
+                                        }
+                                    }).collect::<Vec<TokensTypeUDT>>();
 
-                    let mut write = write.lock().await;
+                                    let mentions = mentions.into_iter().map(|mention| {
+                                        let MentionsType { message_id } = mention;
+                                        MentionsTypeUDT {
+                                            message_id
+                                        }
+                                    }).collect::<Vec<MentionsTypeUDT>>();
 
-                    match write.send(Message::Text(response)).await {
-                        _ => {}
+                                    let guild_order = guild_order.into_iter().map(|order| {
+                                        let GuildOrderType { guild_id, position } = order;
+                                        GuildOrderTypeUDT {
+                                            guild_id,
+                                            position,
+                                        }
+                                    }).collect::<Vec<GuildOrderTypeUDT>>();
+                                    
+                                    let setting_type = CqlSettings {
+                                        allowed_invites,
+                                        bio,
+                                        custom_status,
+                                        guild_order,
+                                        language,
+                                        max_file_upload_size,
+                                        max_guilds,
+                                        mentions,
+                                        privacy,
+                                        status,
+                                        theme,
+                                        tokens,
+                                        user_id,
+                                    };
+
+                                    match session.query(query.query, setting_type).await {
+                                        Ok(_) => {
+                                            println!("Insert successful");
+                                            let mut response = Command {
+                                                command: "insert".to_string(),
+                                                data: CommandData::InsertResponse(InsertResponse {
+                                                    error: None,
+                                                    success: true,
+                                                }),
+                                                keyspace: None,
+                                                table: None,
+                                                hash: "".to_string(),
+                                                length: "".len(),
+                                                nonce: raw_command.nonce.clone(), // todo: do not clone
+                                                type_: None,
+                                            };
+
+                                            let string_response = serde_json::to_string(&response.data).unwrap();
+
+                                            response.length = string_response.len() + response.command.len();
+
+                                            response.hash = calculate_hash(
+                                                response.command.to_string()
+                                                    + &response.length.to_string()
+                                                    + &string_response,
+                                            );
+
+                                            let response = serde_json::to_string(&response).unwrap();
+
+                                            let mut write = write.lock().await;
+
+                                            match write.send(Message::Text(response)).await {
+                                                _ => {}
+                                            }
+                                        }
+                                        Err(error) => {
+                                            print!("Error: {}", error);
+
+                                            let response = Command {
+                                                command: "insert".to_string(),
+                                                data: CommandData::InsertResponse(InsertResponse {
+                                                    error: Some(error.to_string()),
+                                                    success: false,
+                                                }),
+                                                keyspace: None,
+                                                table: None,
+                                                hash: "".to_string(),
+                                                length: "".len(),
+                                                nonce: None,
+                                                type_: None,
+                                            };
+
+                                            let response = serde_json::to_string(&response).unwrap();
+
+                                            let mut write = write.lock().await;
+
+                                            match write.send(Message::Text(response)).await {
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Error :(: {}", e);
+                        }
                     }
                 }
-                Err(error) => {
-                    let response = Command {
-                        command: "insert".to_string(),
-                        data: CommandData::InsertResponse(InsertResponse {
-                            error: Some(error.to_string()),
-                            success: false,
-                        }),
-                        keyspace: None,
-                        table: None,
-                        hash: "".to_string(),
-                        length: "".len(),
-                        nonce: None,
-                    };
 
-                    let response = serde_json::to_string(&response).unwrap();
-
-                    let mut write = write.lock().await;
-
-                    match write.send(Message::Text(response)).await {
-                        _ => {}
-                    }
-                }
+                _ => {}
             }
         }
 

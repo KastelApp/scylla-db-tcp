@@ -84,6 +84,7 @@ class ModelMapper<T = any> {
                 hash: "",
                 length: 0,
                 nonce: generateUUIDv4(),
+                type: null
             };
 
             this.client.nonces.set(command.nonce!, (cmd, client) => {
@@ -141,6 +142,7 @@ class ModelMapper<T = any> {
                 hash: "",
                 length: 0,
                 nonce: generateUUIDv4(),
+                type: this.model.tables[0]
             };
 
             this.client.nonces.set(command.nonce!, (cmd, client) => {
@@ -195,6 +197,7 @@ class ModelMapper<T = any> {
                 hash: "",
                 length: 0,
                 nonce: generateUUIDv4(),
+                type: null
             };
 
             this.client.nonces.set(command.nonce!, (cmd, client) => {
