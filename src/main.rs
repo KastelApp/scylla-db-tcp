@@ -191,6 +191,28 @@ async fn handle_command(
             )
             .await;
         }
+        "delete" => {
+            commands::delete::delete(
+                Arc::clone(&write),
+                &command.data,
+                user,
+                &command.keyspace,
+                &command.table,
+                &command,
+            )
+            .await;
+        }
+        "update" => {
+            commands::update::update(
+                Arc::clone(&write),
+                &command.data,
+                user,
+                &command.keyspace,
+                &command.table,
+                &command,
+            )
+            .await;
+        }
         "raw" => {
             commands::raw::raw(
                 Arc::clone(&write),

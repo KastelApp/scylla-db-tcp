@@ -5,10 +5,7 @@ use scylla::serialize::value::SerializeCql;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    connect::{ConnectData, ConnectResponse},
-    insert::{InsertData, InsertResponse},
-    raw::RawData,
-    select::SelectData,
+    connect::{ConnectData, ConnectResponse}, delete::{DeleteData, DeleteResponse}, insert::{InsertData, InsertResponse}, raw::RawData, select::SelectData, update::{UpdateData, UpdateResponse}
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -34,6 +31,10 @@ pub enum CommandData {
     InsertResponse(InsertResponse),
     Raw(RawData),
     ConnectResponse(ConnectResponse),
+    Delete(DeleteData),
+    DeleteResponse(DeleteResponse),
+    Update(UpdateData),
+    UpdateResponse(UpdateResponse),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

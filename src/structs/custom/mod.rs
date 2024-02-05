@@ -5,3 +5,4 @@ pub mod friends;
 pub mod guild_members;
 pub mod messages;
 pub mod permissions_overides;
+pub mod roles;
