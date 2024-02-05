@@ -2,7 +2,7 @@ name: Release Mac
 
 on:
   push:
-    branches: [master]
+    branches: [inky]
 
 jobs:
   build:
