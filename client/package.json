@@ -1,6 +1,7 @@
 {
   "name": "@kastelapp/scylla",
   "description": "Uses https://github.com/KastelApp/scylla-db-tcp to connect to ScyllaDB over WS",
+  "version": "1.0.4",
   "module": "dist/index.js",
   "main": "dist/index.js",
   "type": "module",
@@ -29,5 +30,10 @@
 			"name": "DarkerInk",
 			"email": "darkerink@kastelapp.com"
 		}
-	]
+	],
+   "scripts": {
+    "build": "bun build ./src/index.ts --minify-syntax --minify-identifiers --target=bun --outdir=./dist --sourcemap=inline",
+    "types": "bunx dts-bundle-generator ./src/index.ts --out-file ./dist/index.d.ts --no-check --no-banner",
+    "prepublish": "bun run build && bun run types"
+   }
 }

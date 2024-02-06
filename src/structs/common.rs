@@ -22,6 +22,9 @@ pub enum Value {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Shutdown {}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CommandData {
     Select(SelectData),
@@ -35,6 +38,7 @@ pub enum CommandData {
     DeleteResponse(DeleteResponse),
     Update(UpdateData),
     UpdateResponse(UpdateResponse),
+    Shutdown(Shutdown),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

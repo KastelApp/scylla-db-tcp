@@ -7,8 +7,8 @@ use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 use crate::{
     calculate_hash::calculate_hash,
     state,
-    structs::common::{Command, CommandData, QueryResult, Value},
-    util::{parse_cql_value::parse_cql_value, queries::select_query},
+    structs::{common::{Command, CommandData, QueryResult, Value}, update::UpdateResponse},
+    util::{parse_cql_value::parse_cql_value, queries::{select_query, update_query}},
     LOGGING,
 };
 
@@ -58,7 +58,8 @@ pub async fn delete(
             let table = table.as_ref().unwrap();
             let keyspace = keyspace.as_ref();
             let user_keyspace = &user.keyspace;
-        }
+
+           }
 
         _ => {
             if *LOGGING.lock().await {

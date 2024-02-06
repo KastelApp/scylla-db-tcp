@@ -151,6 +151,6 @@ pub struct BigintPairUDT { // ? The CQL Type
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BigintPair { // ! The Raw Type
-    pub first: i64,
-    pub second: i64,
+    pub first: String,
+    pub second: String,
 }

@@ -202,7 +202,9 @@ class Client {
     }
 
     private handleError() {
-        console.log("Error occurred, reconnecting...");
+        this.emit("error");
+
+        this.reconnect();
     }
 
     private handleConnect() {
@@ -243,6 +245,7 @@ class Client {
 
             if (!this.connected && parsed.command === "connect") {
                 this.connected = true;
+                this.reconnectTries = 0;
 
                 for (const cmd of baseCommands) {
                     cmd.cmd.length = cmd.cmd.command.length + JSON.stringify(cmd.cmd.data).length;
@@ -268,12 +271,26 @@ class Client {
     private handleClose() {
         this.connected = false;
 
-        console.log("Connection closed, reconnecting...");
+        this.emit("close");
 
         this.reconnect();
     }
 
-    private reconnect() {
+    private maxReconnectTries = 15;
+    private reconnectTries = 0;
+    private sleepTimeout = 1000;
+
+    private async reconnect() {
+        if (this.reconnectTries >= this.maxReconnectTries) {
+            throw new Error("Max reconnect tries reached.");
+        }
+
+        if (this.expectingShutdown) return;
+
+        await Bun.sleep(this.sleepTimeout);
+
+        this.reconnectTries++;
+
         this.#ws = new WebSocket(`ws://${this.scyllatcp.host}:${this.scyllatcp.port}`);
 
         this.#ws.on("open", () => this.handleConnect());
@@ -291,8 +308,6 @@ class Client {
     }
 
     public attemptParsing() {
-        console.log(this.data);
-
         if (!this.data.tables || !this.data.types || !this.data.indexes) return;
 
         const parse = parser(this.data.tables, this.data.indexes);
@@ -389,9 +404,28 @@ class Client {
 
         data.hash = this.generateHash(data.command + data.length + JSON.stringify(data.data));
 
-        console.log(Bun.inspect(data, { colors: true, depth: 20 }));
-
         this.#ws.send(JSON.stringify(data));
+    }
+
+    private expectingShutdown = false;
+
+    public async shutdown() {
+        if (this.expectingShutdown) return;
+
+        this.expectingShutdown = true;
+
+        const command: Commands = {
+            command: "shutdown",
+            hash: "",
+            data: {},
+            length: 0,
+            keyspace: "",
+            nonce: null,
+            table: "",
+            type: "raw"
+        }
+
+        this.handleCommad(command);
     }
 }
 

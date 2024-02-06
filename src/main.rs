@@ -122,10 +122,7 @@ async fn handle_connection(raw_stream: TcpStream, users: Arc<Mutex<state::Store>
                         continue;
                     }
 
-                    println!("Feature: {:?}", command.type_);
-
                     let feature = handle_command(Arc::clone(&outgoing), command, Arc::clone(&user));
-
 
                     tokio::spawn(feature);
                 }
@@ -223,6 +220,11 @@ async fn handle_command(
                 &command,
             )
             .await;
+        }
+        "shutdown" => {
+            match write.lock().await.close().await.unwrap() {
+                _ => {}
+            };
         }
         _ => {
             if *LOGGING.lock().await {

@@ -26,11 +26,12 @@ class Mapper<T extends { [key: string]: Model }> {
         this.options = options;
     }
 
-    public forModel<Y = any>(model: keyof T): ModelMapper<Y> {
+    public forModel<Y = any>(model: keyof T, shouldIncludeType = false): ModelMapper<Y> {
         return new ModelMapper<Y>(
             this.client,
             this.client.keyspace,
-            this.options.models![model]
+            this.options.models![model],
+            shouldIncludeType
         );
     }
 }

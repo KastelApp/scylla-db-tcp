@@ -7,6 +7,7 @@ import Result from "./Result.ts";
 interface docFields<T> {
     fields?: (keyof T)[];
     allowFiltering?: boolean;
+    limit?: number;
 }
 
 interface FindDocInfo<T> {
@@ -27,6 +28,9 @@ type UpdateDocInfo<T> = {
     orderBy?: { [key: string]: string; };
     limit?: number;
     deleteOnlyColumns?: boolean;
+    where?: {
+        [K in keyof T]: T[K];
+    }
 };
 
 type RemoveDocInfo<T> = {
@@ -42,14 +46,18 @@ class ModelMapper<T = any> {
 
     private model: Model;
 
+    private shouldIncludeType: boolean;
+
     public constructor(
         client: Client,
         keyspace: string,
-        model: Model
+        model: Model,
+        shouldIncludeType = false
     ) {
         this.client = client;
         this.keyspace = keyspace;
         this.model = model;
+        this.shouldIncludeType = shouldIncludeType;
     }
 
     public get(doc: Partial<T>, docInfo?: docFields<T>): Promise<T | null> {
@@ -137,7 +145,7 @@ class ModelMapper<T = any> {
                 data: {
                     where: Object.fromEntries(Object.entries(doc).map(([key, value]) => [this.model.mappings.getColumnName(key), value])) as { [key: string]: string; },
                     columns: docInfo?.fields ? docInfo.fields.map((field) => this.model.mappings.getColumnName(field as string)) : [],
-                    limit: 0
+                    limit: docInfo?.limit ?? 0,
                 },
                 hash: "",
                 length: 0,
@@ -204,6 +212,10 @@ class ModelMapper<T = any> {
                 command.type = this.model.tables[0];
             }
 
+            if (this.shouldIncludeType) {
+                command.type = this.model.tables[0];
+            }
+
             this.client.nonces.set(command.nonce!, (cmd, client) => {
                 if (cmd.data.error) {
                     reject(cmd.data.error);
@@ -228,8 +240,93 @@ class ModelMapper<T = any> {
         });
     };
 
-    public update(doc: Partial<T>, docInfo?: UpdateDocInfo<T>): T | null {
-        return null;
+    public update(doc: Partial<T>, docInfo?: UpdateDocInfo<T>): Promise<T | null> {
+        return new Promise((resolve, reject) => {
+            if (!this.model.tables.some((table) => this.client.parsedData.has(table))) {
+                reject("Table not found");
+            }
+
+            const table = this.client.parsedData.get(this.model.tables[0])!; // ? unsure how cassandra-driver handles multiple tables, I only care about the first one :shrug:
+
+            const providedDocKeys = Object.keys(doc).map((key) => this.model.mappings.getColumnName(key));
+
+            // ? first check if they match primary keys (i.e all the primary keys are provided)
+            if (!table.primaryKeys.every((key) => providedDocKeys.includes(key))) {
+                // ? ok so it doesn't, that may be fine, now we check if it matches the index keys, those are arrays of arrays of strings, they must match / include the index keys
+                if (!table.indexKeys.every((index) => index.every((key) => providedDocKeys.includes(key)))) {
+                    // ? So they don't match, we throw an error else scylla will not accept the query
+                    reject(`Missing required keys: ${table.primaryKeys.join(", ")} or ${table.indexKeys.map((index) => index.join(", ")).join(" or ")}`);
+                }
+            }
+
+            // ? we get the keys that are primary or index keys, these will be the "where" part of the query if docInfo.where is not provided
+            let whereKeys = docInfo?.where;
+
+            if (!whereKeys) {
+                if (table.primaryKeys.every((key) => providedDocKeys.includes(key))) {
+                    // we only want to provide the primary keys nothing else
+                    whereKeys = Object.fromEntries(table.primaryKeys.map((key) => [key, doc[this.model.mappings.getPropertyName(key) as keyof T]])) as { [k in keyof T]: T[k] };
+                } else if (table.indexKeys.every((index) => index.every((key) => providedDocKeys.includes(key))) && !whereKeys) {
+                    // ? now we only want ONE set of index keys whichever one is provided
+                    whereKeys = Object.fromEntries(table.indexKeys.map((index) => index.map((key) => [key, doc[this.model.mappings.getPropertyName(key) as keyof T]]).filter(([, value]) => value !== undefined))[0]) as { [k in keyof T]: T[k] };
+                }
+
+                if (!whereKeys) {
+                    reject(`Missing required keys: ${table.primaryKeys.join(", ")} or ${table.indexKeys.map((index) => index.join(", ")).join(" or ")}`);
+                }
+            }
+
+            let data = doc;
+
+            // remove the primary keys from the data (or index keys if theres no primary keys)
+            for (const key of table.primaryKeys) {
+                delete data[this.model.mappings.getPropertyName(key) as keyof T];
+            }
+
+            if (!table.primaryKeys.every((key) => providedDocKeys.includes(key))) {
+                for (const index of table.indexKeys) {
+                    for (const key of index) {
+                        delete data[this.model.mappings.getPropertyName(key) as keyof T];
+                    }
+                }
+            }
+
+            const command: Commands = {
+                command: "update",
+                data: {
+                    primary: this.model.mappings.objectToSnakeCasing(whereKeys!),
+                    values: this.model.mappings.objectToSnakeCasing(doc),
+                },
+                table: this.model.tables[0],
+                keyspace: this.keyspace,
+                hash: "",
+                length: 0,
+                nonce: generateUUIDv4(),
+                type: null
+            }
+
+            if (this.shouldIncludeType) {
+                command.type = this.model.tables[0];
+            }
+
+            this.client.nonces.set(command.nonce!, (cmd, client) => {
+                if (cmd.data.error) {
+                    reject(cmd.data.error);
+                }
+
+                if (!cmd.hashVerified) {
+                    reject("Hash not verified");
+                }
+
+                if (cmd.data.succses) {
+                    resolve(this.model.mappings.objectToNormalCasing(doc) as T);
+                }
+
+                resolve(null);
+            });
+
+            this.client.handleCommad(command);
+        });
     };
 
     public remove(doc: Partial<T>, docInfo?: RemoveDocInfo<T>): boolean {

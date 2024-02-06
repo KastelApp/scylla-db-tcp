@@ -43,4 +43,17 @@ export interface RawCommand extends Command {
     }
 }
 
-export type Commands = InsertCommand | SelectCommand | ConnectCommand | RawCommand;
+export interface ShutdownCommand extends Command {
+    command: "shutdown";
+    data: {};
+}
+
+export interface UpdateCommand extends Command {
+    command: "update";
+    data: {
+        values: { [key: string]: Value };
+        primary: { [key: string]: Value };
+    };
+}
+
+export type Commands = InsertCommand | SelectCommand | ConnectCommand | RawCommand | ShutdownCommand | UpdateCommand;

@@ -1,4 +1,4 @@
-use crate::structs::{common::Value, insert::InsertData, select::SelectData};
+use crate::structs::{common::Value, insert::InsertData, select::SelectData, update::UpdateData};
 
 pub struct Query<'a> {
     pub query: String,
@@ -57,8 +57,6 @@ pub fn select_query<'a>(
         query.push_str(" LIMIT ");
         query.push_str(&data.limit.to_string());
     }
-
-    println!("{}", query);
 
     Query {
         query: query.to_string(),
@@ -133,5 +131,52 @@ pub fn raw_query<'a>(query: &'a String, limit: i32) -> Query<'a> {
         query,
         values,
         map: Vec::new(),
+    }
+}
+
+pub fn update_query<'a>(
+    keyspace: &'a String,
+    table: &'a String,
+    data: &'a UpdateData
+) -> Query<'a> {
+    let mut query = String::from("UPDATE ");
+
+    let mut values: Vec<&Value> = Vec::new();
+
+    query.push_str(keyspace.as_str());
+    query.push_str(".");
+    query.push_str(table.as_str());
+    query.push_str(" SET ");
+
+    let mut columns = Vec::new();
+
+    for (key, value) in &data.values {
+        columns.push(format!("{} = ?", key));
+
+        values.push(value);
+    }
+
+    query.push_str(&columns.join(", "));
+
+    let wc = &data.primary;
+
+    if wc.len() > 0 {
+        query.push_str(" WHERE ");
+    }
+
+    let mut where_clause = Vec::new();
+
+    for (key, value) in wc {
+        where_clause.push(format!("{} = ?", key));
+
+        values.push(value);
+    }
+
+    query.push_str(&where_clause.join(" AND "));
+
+    Query {
+        query,
+        values,
+        map: columns,
     }
 }

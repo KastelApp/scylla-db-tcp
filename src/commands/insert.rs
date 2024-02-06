@@ -198,7 +198,7 @@ pub async fn insert(
                                                 }
                                             }
                                             Err(error) => {
-                                                print!("Error: {}", error);
+                                                println!("Error: {}", error);
 
                                                 let response = Command {
                                                     command: "insert".to_string(),
@@ -278,7 +278,7 @@ pub async fn insert(
                                         let guild_member_type = GuildMembersCQL {
                                             flags,
                                             guild_id,
-                                            guild_member_id,
+                                            guild_member_id: guild_member_id.parse::<i64>().unwrap(),
                                             joined_at: CqlTimestamp(
                                                 DateTime::parse_from_rfc3339(&joined_at)
                                                     .unwrap()
@@ -330,7 +330,7 @@ pub async fn insert(
                                                 }
                                             }
                                             Err(error) => {
-                                                print!("Error: {}", error);
+                                                println!("Error: {}", error);
 
                                                 let response = Command {
                                                     command: "insert".to_string(),
@@ -392,7 +392,10 @@ pub async fn insert(
                                             .into_iter()
                                             .map(|permission| {
                                                 let BigintPair { first, second } = permission;
-                                                BigintPairUDT { first, second }
+                                                BigintPairUDT {
+                                                    first: first.parse::<i64>().unwrap(),
+                                                    second: second.parse::<i64>().unwrap()
+                                                }
                                             })
                                             .collect::<Vec<BigintPairUDT>>();
 
@@ -449,7 +452,7 @@ pub async fn insert(
                                                 }
                                             }
                                             Err(error) => {
-                                                print!("Error: {}", error);
+                                                println!("Error: {}", error);
 
                                                 let response = Command {
                                                     command: "insert".to_string(),
@@ -493,7 +496,6 @@ pub async fn insert(
             } else {
                 match session.query(query.query, query.values).await {
                     Ok(_) => {
-                        println!("Insert successful");
                         let mut response = Command {
                             command: "insert".to_string(),
                             data: CommandData::InsertResponse(InsertResponse {
@@ -527,7 +529,7 @@ pub async fn insert(
                         }
                     }
                     Err(error) => {
-                        print!("Error: {}", error);
+                        println!("Error: {}", error);
 
                         let response = Command {
                             command: "insert".to_string(),

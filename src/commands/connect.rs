@@ -50,15 +50,16 @@ pub async fn connect(
         CommandData::Connect(connect_data) => {
             uu.keyspace = connect_data.keyspace;
 
-            match scylla::SessionBuilder::new()
-                .known_node(connect_data.contact_points[0].as_str())
-                .user(
-                    connect_data.credentials.username,
-                    connect_data.credentials.password,
-                )
-                .build()
-                .await
-            {
+            let mut scoola = scylla::SessionBuilder::new().user(
+                connect_data.credentials.username,
+                connect_data.credentials.password,
+            );
+
+            for contact_point in connect_data.contact_points {
+                scoola = scoola.known_node(contact_point.as_str());
+            }
+
+            match scoola.build().await {
                 Ok(session) => {
                     uu.session = Some(Arc::new(Mutex::new(session)));
                     uu.connected = true;

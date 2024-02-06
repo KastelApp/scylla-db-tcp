@@ -60,31 +60,31 @@ pub async fn raw(
                 Ok(query_result) => {
                     let mut result = Vec::new();
 
-                    let mut indexes = Vec::new();
+                    // let mut indexes = Vec::new();
 
-                    let query_map = &query_result.col_specs;
+                    // let query_map = &query_result.col_specs;
 
-                    for value in query_map {
-                        let (value_idx, _) =
-                            query_result.get_column_spec(value.name.as_str()).unwrap();
+                    // for value in query_map {
+                    //     let (value_idx, _) =
+                    //         query_result.get_column_spec(value.name.as_str()).unwrap();
 
-                        indexes.push(value_idx);
-                    }
+                    //     indexes.push(value_idx);
+                    // }
 
-                    for row in query_result.rows.unwrap_or(Vec::new()) {
-                        let mut row_vec: IndexMap<String, Value> = IndexMap::new();
+                    // for row in query_result.rows.unwrap_or(Vec::new()) {
+                    //     let mut row_vec: IndexMap<String, Value> = IndexMap::new();
 
-                        for index in &indexes {
-                            let column = row.columns[index.to_owned()].as_ref();
-                            let name = query_map[index.to_owned()].name.as_str().to_string();
+                    //     for index in &indexes {
+                    //         let column = row.columns[index.to_owned()].as_ref();
+                    //         let name = query_map[index.to_owned()].name.as_str().to_string();
 
-                            let value = parse_cql_value(column);
+                    //         let value = parse_cql_value(column);
 
-                            row_vec.insert(name, value);
-                        }
+                    //         row_vec.insert(name, value);
+                    //     }
 
-                        result.push(row_vec);
-                    }
+                    //     result.push(row_vec);
+                    // }
 
                     let mut query_result = Command {
                         hash: "".to_string(),

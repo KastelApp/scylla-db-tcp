@@ -15,7 +15,7 @@ pub struct GuildMembersCQL {
     pub joined_at: CqlTimestamp,
     pub flags: i32,
     pub timeouts: Vec<MemberTimeoutsUDT>,
-    pub guild_member_id: String,
+    pub guild_member_id: i64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
