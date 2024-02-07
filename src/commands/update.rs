@@ -64,8 +64,6 @@ pub async fn update(
             let keyspace = keyspace.as_ref();
             let user_keyspace = &user.keyspace;
 
-            println!("Hi");
-
             let query = update_query(
                 &keyspace.to_owned().unwrap_or(user_keyspace),
                 table,
@@ -485,7 +483,6 @@ pub async fn update(
             } else {
                 match session.query(query.query, query.values).await {
                     Ok(_) => {
-                        println!("Insert successful");
                         let mut response = Command {
                             command: "insert".to_string(),
                             data: CommandData::UpdateResponse(UpdateResponse {

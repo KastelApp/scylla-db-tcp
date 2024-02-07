@@ -1,4 +1,4 @@
-use crate::structs::{common::Value, insert::InsertData, select::SelectData, update::UpdateData};
+use crate::structs::{common::Value, delete::DeleteData, insert::InsertData, select::SelectData, update::UpdateData};
 
 pub struct Query<'a> {
     pub query: String,
@@ -178,5 +178,39 @@ pub fn update_query<'a>(
         query,
         values,
         map: columns,
+    }
+}
+
+pub fn delete_query<'a>(
+    keyspace: &'a String,
+    table: &'a String,
+    data: &'a DeleteData
+) -> Query<'a> {
+    let mut query = String::from("DELETE FROM ");
+
+    let mut values: Vec<&Value> = Vec::new();
+
+    query.push_str(keyspace.as_str());
+    query.push_str(".");
+    query.push_str(table.as_str());
+
+    if data.where_data.len() > 0 {
+        query.push_str(" WHERE ");
+    }
+
+    let mut where_clause = Vec::new();
+
+    for (key, value) in &data.where_data {
+        where_clause.push(format!("{} = ?", key));
+
+        values.push(value);
+    }
+
+    query.push_str(&where_clause.join(" AND "));
+
+    Query {
+        query,
+        values,
+        map: Vec::new(),
     }
 }

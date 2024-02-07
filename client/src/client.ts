@@ -241,6 +241,8 @@ class Client {
                     data: parsed.data,
                     hashVerified: parsed.hash === this.generateHash(parsed.command + parsed.length + JSON.stringify(parsed.data)) // ? if this is false, the command is unsafe, and should be discarded
                 }, this);
+
+                this.nonces.delete(parsed.nonce);
             }
 
             if (!this.connected && parsed.command === "connect") {

@@ -5,8 +5,8 @@ use super::common::Value;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DeleteData {
-    #[serde(rename = "where")]
-    pub where_clause: IndexMap<String, Value>,
+    #[serde(rename = "whereData")]
+    pub where_data: IndexMap<String, Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -56,4 +56,12 @@ export interface UpdateCommand extends Command {
     };
 }
 
-export type Commands = InsertCommand | SelectCommand | ConnectCommand | RawCommand | ShutdownCommand | UpdateCommand;
+export interface DeleteCommand extends Command {
+    command: "delete";
+    data: {
+        whereData: { [key: string]: Value };
+    };
+
+}
+
+export type Commands = InsertCommand | SelectCommand | ConnectCommand | RawCommand | ShutdownCommand | UpdateCommand | DeleteCommand;
