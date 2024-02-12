@@ -1,4 +1,5 @@
 name: Release linux
+runs-on: self-hosted
 
 on:
   push:
